@@ -37,7 +37,9 @@ from video files.
 Install ODLabTracker and run the postural tracker on each video:
 
 ```bash
-pip install git+https://github.com/ODonnellLab/ODLabTracker.git
+git clone https://github.com/ODonnellLab/ODLabTracker.git
+cd ODLabTracker
+pip install -e .
 python track.py -c configs/IR_medium.yaml -f path/to/video.avi
 ```
 
@@ -57,7 +59,7 @@ dataset/
 └── ...
 ```
 
-For large datasets, use the parallel batch runner:
+For large datasets, use the parallel batch runner (4–6 workers recommended to avoid NAS I/O saturation):
 
 ```bash
 python run_fasttrack_parallel.py /path/to/dataset -c configs/IR_medium.yaml -j 4
@@ -91,20 +93,35 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 |------|-------------|
 | `batch_postural_comparison.py` | Analysis script — metrics, LME, figure |
 | `exclude.csv` | Genotype/date pairs excluded before normalization |
+| `test_reproduce.py` | Reproduction test: demo (no NAS) and full NAS rescan |
 | `data/supplemental_particle_data.csv` | Per-particle raw metrics (13,709 particles) |
 | `data/fwd_frame_data.parquet` | Per-forward-run-frame speed data used by LME |
 | `data/particle_data.parquet` | Per-particle cache |
 | `data/recording_data.parquet` | Per-recording summary with normalized values |
 | `data/postural_comparison_stats.csv` | LME fold-change estimates and FDR q-values |
 | `data/postural_comparison.csv` | Per-recording summary CSV |
-| `data/postural_comparison.pdf` | Final figure |
+| `data/postural_comparison.pdf` | Final figure (8.5 × 11 in, vector text) |
+| `data/postural_comparison.png` | Final figure (raster) |
 | `demo_data/` | 4-genotype subset for install verification (see below) |
 
 ---
 
 ## Verify your install with demo data
 
-Run the analysis on a 4-genotype subset (~5 MB) included in `demo_data/`:
+Run the automated reproduction test, which checks particle counts, N2 speed, and LME
+fold-changes against expected values:
+
+```bash
+python test_reproduce.py          # demo only — no NAS required
+```
+
+To also verify the full NAS rescan (reproduces all 117 recordings from raw `tracks.csv` files):
+
+```bash
+python test_reproduce.py --data-dir /path/to/raw/dataset
+```
+
+Or run the analysis manually on the 4-genotype demo subset:
 
 ```bash
 python batch_postural_comparison.py \
@@ -113,8 +130,7 @@ python batch_postural_comparison.py \
     --title   "Demo — forward-run speed"
 ```
 
-This will replot from the cached demo parquets and write `demo_data/postural_comparison.png`.
-Add `--refit` to re-run the LME models on the demo subset.
+This writes `demo_data/postural_comparison.png`. Add `--refit` to re-run the LME models.
 
 ---
 
