@@ -145,8 +145,9 @@ def run_full_test(data_dir):
                 continue
             fc_actual = speed_stat.loc[geno, "fold_change"]
             is_nan = pd.isna(fc_actual)
+            fc_str = "NaN" if is_nan else f"{fc_actual:.4f}"
             print(f"  [{'PASS' if is_nan else 'FAIL'}] LME fold-change {geno}: "
-                  f"{'NaN' if is_nan else fc_actual:.4f}  (expected NaN — no same-date N2)")
+                  f"{fc_str}  (expected NaN — no same-date N2)")
             passed &= is_nan
 
     return passed
