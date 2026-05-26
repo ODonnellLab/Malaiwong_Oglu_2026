@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# LME subprocess scratch files
+data/_lme_*

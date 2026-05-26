@@ -1,0 +1,36 @@
+genotype,date
+# === Jan 20 & 21 sessions: excluded for all genotypes ===
+# These two sessions were performed under different conditions (worm preparation,
+# handling, or environmental differences) and show systematically elevated N2 speeds
+# (0.178 and 0.169 mm/s respectively) compared to Jan 22–24 (0.164–0.151 mm/s).
+# Excluding all genotypes on these dates prevents a batch confound.
+N2,20260120
+N2,20260121
+cat-1,20260120
+cat-1,20260121
+cest-2.1,20260120
+cest-2.1,20260121
+cest2.1 + tbh-1,20260120
+cest2.1 + tbh-1,20260121
+fcmt-1,20260121
+# === Individual recording exclusions ===
+# bas-1/20260207: spurious particle cluster in one corner of plate (likely debris
+#   or flickering illumination artifact). 144 "particles" tracked but most are not
+#   worms — yields near-zero mean speed and artifactually high reversal rate (~9/min).
+bas-1,20260207
+# bas-1/20260307: only 39 particles tracked — too few real worms to be reliable.
+#   Probable illumination flickering causing detection failure.
+bas-1,20260307
+# bas-1/20260312: bright white light on outer plate edge (same artifact class as
+#   cat-1/20260120). Thresholding corrupted; spurious reversal rate of 15/min.
+bas-1,20260312
+# === March N2 exclusions ===
+# N2/20260312: normalization completely failed (p99 CV 0.0435→0.0435 unchanged);
+#   anomalously low speed (67 µm/s). Likely a recording artifact. No other
+#   genotypes recorded this date, so this only affects the grand-mean N2 baseline.
+N2,20260312
+# N2/20260311: normalization succeeded but speed is anomalously low (84 µm/s).
+#   No obvious artifact — the March batch generally runs slower (possibly older
+#   or different-prep worms). Excluded to avoid pulling down the N2 grand mean;
+#   no other genotypes recorded this date so exclusion has no cross-genotype impact.
+N2,20260311

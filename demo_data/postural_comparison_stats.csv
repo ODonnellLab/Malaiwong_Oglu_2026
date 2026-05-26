@@ -1,0 +1,10 @@
+genotype,metric,n_recordings,n_particles,fold_change,fc_lo,fc_hi,p_raw,q,stars
+T10C6.6,speed,3,189,0.7376,0.4729,1.0023,0.1884,0.3768,
+ser-2,speed,3,253,1.0501,0.8982,1.2020,0.5843,0.5843,
+ugt-64,speed,3,208,,,,,,
+T10C6.6,reversal_rate,3,189,1.2457,-2.7665,5.2578,0.9151,0.9305,
+ser-2,reversal_rate,3,253,1.1134,-1.0963,3.3232,0.9305,0.9305,
+ugt-64,reversal_rate,3,208,,,,,,
+T10C6.6,pirouette_rate,3,189,2.9650,1.0843,4.8456,0.0406,0.0813,
+ser-2,pirouette_rate,3,253,0.4904,-0.3353,1.3160,0.2264,0.2264,
+ugt-64,pirouette_rate,3,208,,,,,,
