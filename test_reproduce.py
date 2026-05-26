@@ -3,12 +3,12 @@ Reproduction test for Malaiwong & Oglu 2026 locomotion analysis.
 
 Runs two tiers:
   1. Demo test   — always runs; uses the 4-genotype subset in demo_data/.
-  2. Full test   — runs only when the NAS is mounted; rescans raw tracking
+  2. Full test   — runs when --data-dir is supplied; rescans raw tracking
                    data and checks that key metrics match published values.
 
 Usage:
-    python test_reproduce.py              # demo only
-    python test_reproduce.py --full       # demo + full NAS rescan
+    python test_reproduce.py                              # demo only
+    python test_reproduce.py --data-dir /path/to/dataset # demo + full rescan
 """
 
 import argparse
@@ -18,11 +18,9 @@ import subprocess
 import sys
 import tempfile
 
-import numpy as np
 import pandas as pd
 
-NAS_DATA_DIR = "/Volumes/User Homes/ODlab-user/UserFolders/Nawaphat"
-PYTHON       = sys.executable
+PYTHON = sys.executable
 
 EXPECTED_FULL = {
     "n_recordings":  117,
@@ -39,7 +37,7 @@ EXPECTED_FULL = {
 }
 
 EXPECTED_DEMO = {
-    "n_genotypes": 4,
+    "n_genotypes":   4,
     "n2_speed_mean": 0.163,
 }
 
@@ -65,7 +63,6 @@ def run_demo_test():
     passed = True
 
     with tempfile.TemporaryDirectory() as tmp:
-        # copy demo_data and support files into temp dir so we write nothing back
         demo_tmp = os.path.join(tmp, "demo_data")
         shutil.copytree("demo_data", demo_tmp)
         shutil.copy("batch_postural_comparison.py", tmp)
@@ -74,11 +71,10 @@ def run_demo_test():
         run([PYTHON, "batch_postural_comparison.py",
              "--out-dir", "demo_data/",
              "--exclude", "exclude.csv",
-             "--title", "Demo test"],
+             "--title",   "Demo test"],
             cwd=tmp)
 
         rec  = pd.read_parquet(os.path.join(demo_tmp, "recording_data.parquet"))
-        stat = pd.read_csv(os.path.join(demo_tmp, "postural_comparison_stats.csv"))
 
         n_geno = rec["genotype"].nunique()
         ok = n_geno == EXPECTED_DEMO["n_genotypes"]
@@ -96,12 +92,8 @@ def run_demo_test():
     return passed
 
 
-def run_full_test():
-    print("\n=== Full test (NAS rescan) ===")
-    if not os.path.isdir(NAS_DATA_DIR):
-        print(f"  [SKIP] NAS not mounted at: {NAS_DATA_DIR}")
-        return True
-
+def run_full_test(data_dir):
+    print(f"\n=== Full test (rescan from {data_dir}) ===")
     passed = True
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -109,21 +101,21 @@ def run_full_test():
         shutil.copy("exclude.csv", tmp)
 
         run([PYTHON, "batch_postural_comparison.py",
-             "--data-dir", NAS_DATA_DIR,
-             "--out-dir", "results/",
-             "--exclude", "exclude.csv",
+             "--data-dir", data_dir,
+             "--out-dir",  "results/",
+             "--exclude",  "exclude.csv",
              "--refresh",
-             "--title", "Full reproduction test"],
+             "--title",    "Full reproduction test"],
             cwd=tmp)
 
-        out   = os.path.join(tmp, "results")
-        part  = pd.read_parquet(os.path.join(out, "particle_data.parquet"))
-        rec   = pd.read_parquet(os.path.join(out, "recording_data.parquet"))
-        stat  = pd.read_csv(os.path.join(out, "postural_comparison_stats.csv"))
+        out  = os.path.join(tmp, "results")
+        part = pd.read_parquet(os.path.join(out, "particle_data.parquet"))
+        rec  = pd.read_parquet(os.path.join(out, "recording_data.parquet"))
+        stat = pd.read_csv(os.path.join(out, "postural_comparison_stats.csv"))
 
         exp = EXPECTED_FULL
         for label, actual, expected in [
-            ("n_recordings", len(rec),               exp["n_recordings"]),
+            ("n_recordings", len(rec),                exp["n_recordings"]),
             ("n_genotypes",  rec["genotype"].nunique(), exp["n_genotypes"]),
             ("n_particles",  len(part),               exp["n_particles"]),
         ]:
@@ -147,15 +139,17 @@ def run_full_test():
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--full", action="store_true",
-                        help="Also run full NAS rescan (requires mounted NAS)")
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--data-dir", default=None,
+                        help="Path to dataset root containing genotype subdirectories. "
+                             "When supplied, runs the full NAS rescan test in addition to the demo test.")
     args = parser.parse_args()
 
     results = []
     results.append(("Demo", run_demo_test()))
-    if args.full:
-        results.append(("Full", run_full_test()))
+    if args.data_dir:
+        results.append(("Full", run_full_test(args.data_dir)))
 
     print("\n=== Summary ===")
     all_passed = True
