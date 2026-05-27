@@ -316,10 +316,7 @@ def make_sos_distribution_plot(animal_df, recording_df, sos_stat, n2_rt_geom_s,
     rec["date_matched"] = rec["date"].isin(n2_by_date)
 
     fig_h = max(8, n_geno * 0.45)
-    fig, (ax, ax_ecdf) = plt.subplots(
-        1, 2, sharey=True, figsize=(8.5, fig_h),
-        gridspec_kw={"width_ratios": [2, 1]})
-    fig.subplots_adjust(wspace=0.04)
+    fig, ax = plt.subplots(figsize=(5.5, fig_h))
     fig.suptitle(title, fontsize=11, y=1.01)
 
     # ── left panel: strip plot ────────────────────────────────────────────────
@@ -388,43 +385,8 @@ def make_sos_distribution_plot(animal_df, recording_df, sos_stat, n2_rt_geom_s,
         mlines.Line2D([], [], color=_DOT_N2,        marker="D", ls="none",
                       mec="white", mew=0.5, label="N2 mean ± SEM"),
     ]
-    max_dot = rec["rt_norm"].max(skipna=True)
-    xlim    = ax.get_xlim()
-    leg_x   = (max_dot - xlim[0]) / (xlim[1] - xlim[0]) + 0.01
     ax.legend(handles=leg_handles, fontsize=7.5, framealpha=0.9,
-              loc="center left", bbox_to_anchor=(leg_x, 0.5))
-
-    # ── right panel: per-genotype ECDF ────────────────────────────────────────
-    ECDF_HW = 0.42   # max height of ECDF within each row
-
-    for g in order:
-        y_ctr = ytick[g]
-        ax_ecdf.axhline(y_ctr - 0.5, color="lightgray", lw=0.3, zorder=0)
-
-        vals = (animal_df[animal_df["genotype"] == g]["response_time"]
-                .dropna().sort_values().values)
-        if len(vals) == 0:
-            continue
-
-        color = _DOT_N2 if g == "N2" else _DOT_MATCHED
-        lw    = 1.2 if g == "N2" else 0.8
-
-        n       = len(vals)
-        ecdf_x  = np.concatenate([[0], vals])
-        ecdf_y  = np.concatenate([[0], np.arange(1, n + 1) / n])
-        # scale ECDF proportion [0,1] → [y_ctr, y_ctr + ECDF_HW]
-        ecdf_ys = y_ctr + ecdf_y * ECDF_HW
-
-        ax_ecdf.step(ecdf_x, ecdf_ys, where="post", color=color, lw=lw, alpha=0.75)
-        ax_ecdf.fill_between(ecdf_x, y_ctr, ecdf_ys, step="post",
-                             alpha=0.12, color=color)
-
-    ax_ecdf.axvline(NR_CEILING, color="gray", lw=0.5, ls=":", alpha=0.5)
-    ax_ecdf.set_xlim(0, NR_CEILING + 0.5)
-    ax_ecdf.set_xlabel(f"Response time (s)\nNR censored at {NR_CEILING:.0f} s", fontsize=9)
-    ax_ecdf.spines[["top", "right", "left"]].set_visible(False)
-    ax_ecdf.tick_params(axis="x", labelsize=8)
-    ax_ecdf.tick_params(axis="y", left=False)
+              loc="upper right")
 
     plt.tight_layout()
     pdf_path = out_path.replace(".png", ".pdf")
