@@ -178,11 +178,11 @@ def make_recording_summary(animal_df):
 
 
 # ── log-normal LME via R/lme4 + emmeans ──────────────────────────────────────
-# Model: log(response_time) ~ genotype + date + (1|recording_id)
-# Fixed date effects (N2 present on each date; avoids REML shrinkage with
-# ~3 recordings/genotype — same rationale as the speed LME).
-# Only dates with a same-date N2 are included.
-# emmeans back-transforms to time ratios (geometric mean seconds).
+# Model: log(response_time) ~ genotype + (1|date) + (1|recording_id)
+# Random date effect: with 97 dates the between-date variance is well-estimated
+# and random effects are more appropriate than 97 fixed date parameters.
+# recording_id = genotype × date (plate-level random intercept).
+# emmeans back-transforms to time ratios vs N2 (geometric mean seconds).
 
 _R_SCRIPT = r"""
 suppressMessages(library(lme4))
@@ -195,21 +195,23 @@ d$genotype     <- relevel(d$genotype, ref = "N2")
 d$date         <- factor(d$date)
 d$recording_id <- factor(d$recording_id)
 
-# Retain only dates where N2 was also recorded
-n2_dates <- unique(d$date[d$genotype == "N2"])
-d <- d[d$date %in% n2_dates, ]
-d$date         <- droplevels(d$date)
-d$recording_id <- droplevels(d$recording_id)
-
 cat(sprintf("LME: %d animals, %d genotypes, %d dates, %d recordings\n",
             nrow(d), nlevels(d$genotype), nlevels(d$date),
             nlevels(d$recording_id)))
 
-# Log-normal model: fixed genotype + date, random plate (recording_id) intercept
-fit <- lmer(log(response_time) ~ genotype + date + (1 | recording_id),
+# Log-normal model: random date + plate (recording_id) intercepts
+fit <- lmer(log(response_time) ~ genotype + (1 | date) + (1 | recording_id),
             data    = d,
             REML    = TRUE,
             control = lmerControl(optimizer = "bobyqa"))
+
+if (isSingular(fit)) {{
+  message("Note: singular fit (date+recording_id) — dropping recording_id")
+  fit <- lmer(log(response_time) ~ genotype + (1 | date),
+              data    = d,
+              REML    = TRUE,
+              control = lmerControl(optimizer = "bobyqa"))
+}}
 
 # emmeans on log scale, then back-transform to time ratios vs N2
 emm <- emmeans(fit, ~ genotype)
@@ -433,6 +435,77 @@ def make_sos_distribution_plot(animal_df, recording_df, sos_stat, n2_rt_geom_s,
     plt.close(fig)
 
 
+# ── overlapping ECDF figure ───────────────────────────────────────────────────
+
+def make_sos_ecdf_plot(animal_df, sos_stat, n2_rt_geom_s, out_path,
+                       title="33% octanol response time — all genotypes"):
+    stat = sos_stat.set_index("genotype")
+
+    # Significant genotypes (q < 0.05), excluding N2
+    sig = {g for g in stat.index
+           if g != "N2" and not pd.isna(stat.loc[g, "q"]) and stat.loc[g, "q"] < 0.05}
+
+    # Color palette for significant genotypes (ordered by time ratio)
+    sig_order = (stat.loc[list(sig), "time_ratio"]
+                 .sort_values().index.tolist())
+    cmap   = matplotlib.colormaps.get_cmap("tab20").resampled(max(len(sig_order), 1))
+    colors = {g: cmap(i) for i, g in enumerate(sig_order)}
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    genotypes = animal_df["genotype"].unique()
+    for g in genotypes:
+        if g == "N2":
+            continue
+        vals = (animal_df[animal_df["genotype"] == g]["response_time"]
+                .dropna().sort_values().values)
+        if len(vals) == 0:
+            continue
+        n      = len(vals)
+        ecdf_x = np.concatenate([[0], vals, [NR_CEILING]])
+        ecdf_y = np.concatenate([[0], np.arange(1, n + 1) / n, [1.0]])
+
+        if g in sig:
+            label = DISPLAY_NAME.get(g, g)
+            q_val = stat.loc[g, "q"]
+            s     = _stars(q_val)
+            ax.step(ecdf_x, ecdf_y, where="post",
+                    color=colors[g], lw=1.4, alpha=0.85,
+                    label=f"{label} {s}", zorder=3)
+        else:
+            ax.step(ecdf_x, ecdf_y, where="post",
+                    color="lightgray", lw=0.7, alpha=0.6, zorder=1)
+
+    # N2 last so it's on top
+    n2_vals = (animal_df[animal_df["genotype"] == "N2"]["response_time"]
+               .dropna().sort_values().values)
+    n       = len(n2_vals)
+    ecdf_x  = np.concatenate([[0], n2_vals, [NR_CEILING]])
+    ecdf_y  = np.concatenate([[0], np.arange(1, n + 1) / n, [1.0]])
+    ax.step(ecdf_x, ecdf_y, where="post",
+            color=_DOT_N2, lw=2.0, alpha=0.9,
+            label=f"N2  (geom mean {n2_rt_geom_s:.1f} s)", zorder=4)
+
+    ax.axvline(NR_CEILING, color="gray", lw=0.6, ls=":", alpha=0.5)
+    ax.set_xlabel("Response time (s) — NR censored at 20 s", fontsize=9)
+    ax.set_ylabel("Cumulative fraction", fontsize=9)
+    ax.set_xlim(0, NR_CEILING + 0.5)
+    ax.set_ylim(0, 1.02)
+    ax.set_title(title, fontsize=10)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(labelsize=8)
+    ax.legend(fontsize=7, framealpha=0.9, loc="lower right",
+              title="Significant (q < 0.05)", title_fontsize=7)
+
+    plt.tight_layout()
+    pdf_path = out_path.replace(".png", ".pdf")
+    fig.savefig(pdf_path, bbox_inches="tight")
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    print(f"Saved figure: {pdf_path}")
+    print(f"Saved figure: {out_path}")
+    plt.close(fig)
+
+
 # ── correlation plot ──────────────────────────────────────────────────────────
 
 def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
@@ -606,13 +679,21 @@ def main():
     else:
         n2_speed_mm = np.nan
 
-    # ── distribution plot (strip + ECDF) ─────────────────────────────────────
+    # ── distribution plot (strip + per-row ECDF) ─────────────────────────────
     dist_out = os.path.join(args.out_dir, "sos_distribution.png")
     make_sos_distribution_plot(
         animal_df, recording_df, stat_df,
         n2_rt_geom_s=n2_rt_geom,
         out_path=dist_out,
         title="33% octanol response time")
+
+    # ── overlapping ECDF ──────────────────────────────────────────────────────
+    ecdf_out = os.path.join(args.out_dir, "sos_ecdf.png")
+    make_sos_ecdf_plot(
+        animal_df, stat_df,
+        n2_rt_geom_s=n2_rt_geom,
+        out_path=ecdf_out,
+        title="33% octanol response time — all genotypes")
 
     # ── correlation plot ───────────────────────────────────────────────────────
     fig_out = os.path.join(args.out_dir, "speed_sos_correlation.png")
