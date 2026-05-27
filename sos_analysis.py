@@ -500,13 +500,19 @@ def make_sos_ecdf_plot(animal_df, sos_stat, n2_rt_geom_s, out_path,
     plt.close(fig)
 
 
-def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
-                                out_path, title="33% octanol response time"):
-    """Strip plot (left) + overlapping ECDF (right) on a single 8.5 × 11 page."""
+def make_combined_supplemental(animal_df, recording_df, sos_stat, speed_stat,
+                                n2_rt_geom_s, n2_speed_mm, out_path,
+                                title="33% octanol response time"):
+    """
+    3-panel supplemental figure on 8.5 × 11:
+      Left  (full height): strip plot of per-trial response time
+      Top right:           overlapping ECDF (all genotypes)
+      Bottom right:        speed vs response-time correlation
+    """
     import matplotlib.lines as mlines
 
-    stat   = sos_stat.set_index("genotype")
-    order  = stat.sort_values("time_ratio").index.tolist()
+    stat    = sos_stat.set_index("genotype")
+    order   = stat.sort_values("time_ratio").index.tolist()
     present = set(animal_df["genotype"].unique())
     order   = [g for g in order if g in present and g != "N2"]
     ratios  = [stat.loc[g, "time_ratio"] if g in stat.index else np.nan for g in order]
@@ -527,21 +533,29 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
     rec["date_matched"] = rec["date"].isin(n2_by_date)
 
     fig = plt.figure(figsize=(8.5, 11))
-    gs  = fig.add_gridspec(1, 2, width_ratios=[1.6, 1],
-                           left=0.17, right=0.97, top=0.96, bottom=0.05,
-                           wspace=0.10)
-    ax_strip = fig.add_subplot(gs[0])
-    ax_ecdf  = fig.add_subplot(gs[1])
+    gs  = fig.add_gridspec(
+        2, 2,
+        width_ratios=[1.4, 1],
+        height_ratios=[1, 1],
+        left=0.17, right=0.97, top=0.96, bottom=0.05,
+        wspace=0.30, hspace=0.35)
+    ax_strip = fig.add_subplot(gs[:, 0])   # left column, full height
+    ax_ecdf  = fig.add_subplot(gs[0, 1])   # top right
+    ax_corr  = fig.add_subplot(gs[1, 1])   # bottom right
 
     fig.suptitle(title, fontsize=11, y=0.99)
+
+    # ── panel labels ──────────────────────────────────────────────────────────
+    for ax, lbl in [(ax_strip, "A"), (ax_ecdf, "B"), (ax_corr, "C")]:
+        ax.text(-0.18, 1.02, lbl, transform=ax.transAxes,
+                fontsize=12, fontweight="bold", va="bottom", ha="left")
 
     # ── strip plot ────────────────────────────────────────────────────────────
     for _, row in rec.iterrows():
         g = row["genotype"]
         if g not in ytick or pd.isna(row["rt_norm"]):
             continue
-        y = ytick[g]
-        x = row["rt_norm"]
+        y, x = ytick[g], row["rt_norm"]
         if g == "N2":
             ax_strip.plot(x, y, "o", mfc=_DOT_N2, mec=_DOT_N2,
                           ms=5, alpha=0.65, lw=0, zorder=2)
@@ -561,8 +575,7 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
             sem = vals.sem() if len(vals) > 1 else 0.0
             ax_strip.plot([ctr - sem, ctr + sem], [y, y], color=_DOT_N2,
                           lw=2.5, solid_capstyle="round", zorder=4)
-            ax_strip.plot(ctr, y, "D", color=_DOT_N2, ms=7, zorder=5,
-                          mec="white", mew=0.5)
+            ax_strip.plot(ctr, y, "D", color=_DOT_N2, ms=7, zorder=5, mec="white", mew=0.5)
             ax_strip.text(ctr, y + 0.19, f"{n2_rt_geom_s:.1f} s", fontsize=6.5,
                           va="bottom", ha="center", color=_DOT_N2, zorder=7)
             continue
@@ -577,8 +590,7 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
                           color="#111111", fontweight="bold", zorder=6)
         ax_strip.plot([lo, hi], [y, y], color=_DIAMOND_MUT, lw=2.5,
                       solid_capstyle="round", zorder=4)
-        ax_strip.plot(ctr, y, "D", color=_DIAMOND_MUT, ms=7, zorder=5,
-                      mec="white", mew=0.5)
+        ax_strip.plot(ctr, y, "D", color=_DIAMOND_MUT, ms=7, zorder=5, mec="white", mew=0.5)
         ax_strip.text(ctr, y + 0.19, f"{ctr:.2f}", fontsize=6.5, va="bottom",
                       ha="center", color=_DIAMOND_MUT, zorder=7)
 
@@ -590,7 +602,6 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
     ax_strip.set_yticklabels([DISPLAY_NAME.get(g, g) for g in order], fontsize=7.5)
     ax_strip.spines[["top", "right"]].set_visible(False)
     ax_strip.tick_params(axis="x", labelsize=8)
-
     leg_handles = [
         mlines.Line2D([], [], color=_DOT_MATCHED,   marker="o", ls="none",
                       label="Trial — same-date N2"),
@@ -603,8 +614,11 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
     ]
     ax_strip.legend(handles=leg_handles, fontsize=7, framealpha=0.9, loc="upper right")
 
-    # ── ECDF panel ────────────────────────────────────────────────────────────
+    # ── ECDF ─────────────────────────────────────────────────────────────────
     _draw_ecdf_panel(ax_ecdf, animal_df, sos_stat, n2_rt_geom_s)
+
+    # ── correlation ───────────────────────────────────────────────────────────
+    _draw_correlation_panel(ax_corr, sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm)
 
     pdf_path = out_path.replace(".png", ".pdf")
     fig.savefig(pdf_path, bbox_inches="tight")
@@ -616,13 +630,11 @@ def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
 
 # ── correlation plot ──────────────────────────────────────────────────────────
 
-def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
-                          out_path,
-                          title="Forward-run speed vs. stimulus response time"):
+def _draw_correlation_panel(ax, sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm):
+    """Draw speed vs response-time correlation onto ax. Returns (pr, pp, sr, sp)."""
     speed = speed_stat[speed_stat["metric"] == "speed"].set_index("genotype")
     sos   = sos_stat.set_index("genotype")
 
-    # Gather genotypes present in both with non-NaN estimates, excluding N2
     xs, ys, labels = [], [], []
     x_lo, x_hi, y_lo, y_hi = [], [], [], []
     for g in sorted(set(speed.index) & set(sos.index) - {"N2"}):
@@ -630,8 +642,7 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
         tr_r = sos.loc[g, "time_ratio"]
         if pd.isna(fc_s) or pd.isna(tr_r):
             continue
-        xs.append(fc_s)
-        ys.append(tr_r)
+        xs.append(fc_s); ys.append(tr_r)
         labels.append(DISPLAY_NAME.get(g, g))
         x_lo.append(speed.loc[g, "fc_lo"] if "fc_lo" in speed.columns else fc_s)
         x_hi.append(speed.loc[g, "fc_hi"] if "fc_hi" in speed.columns else fc_s)
@@ -646,16 +657,13 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
     pearson_r,  pearson_p  = sp_stats.pearsonr(xs, ys)
     spearman_r, spearman_p = sp_stats.spearmanr(xs, ys)
 
-    # Leave-one-out sensitivity for each point; report the one that changes r most
-    loo_label, loo_pr, loo_pp, loo_sr, loo_sp = None, pearson_r, pearson_p, spearman_r, spearman_p
+    loo_label, loo_pr, loo_pp = None, pearson_r, pearson_p
     for i, lab in enumerate(labels):
         mask = np.ones(n, dtype=bool); mask[i] = False
         pr_i, pp_i = sp_stats.pearsonr(xs[mask], ys[mask])
-        sr_i, sp_i = sp_stats.spearmanr(xs[mask], ys[mask])
         if abs(pr_i - pearson_r) > abs(loo_pr - pearson_r):
-            loo_label, loo_pr, loo_pp, loo_sr, loo_sp = lab, pr_i, pp_i, sr_i, sp_i
+            loo_label, loo_pr, loo_pp = lab, pr_i, pp_i
 
-    fig, ax = plt.subplots(figsize=(6, 5))
     ax.errorbar(xs, ys,
                 xerr=[xs - x_lo, x_hi - xs],
                 yerr=[ys - y_lo, y_hi - ys],
@@ -674,43 +682,46 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
     m, b = np.polyfit(xs, ys, 1)
     xfit = np.linspace(xs.min() - 0.05, xs.max() + 0.05, 100)
     ax.plot(xfit, m * xfit + b, color="#b2182b", lw=1, ls="--", alpha=0.7)
-
     ax.axhline(1, color="gray", lw=0.6, ls=":", alpha=0.5)
     ax.axvline(1, color="gray", lw=0.6, ls=":", alpha=0.5)
 
     n2_speed_um = n2_speed_mm * 1000
     ax.set_xlabel(
-        f"Forward-run speed (fold-change vs N2)\n"
-        f"N2 mean = {n2_speed_um:.0f} µm/s",
-        fontsize=9)
+        f"Forward-run speed (fold-change vs N2)\nN2 mean = {n2_speed_um:.0f} µm/s",
+        fontsize=8)
     ax.set_ylabel(
-        f"Response time (ratio vs N2)\n"
-        f"N2 geometric mean = {n2_rt_geom_s:.1f} s",
-        fontsize=9)
-    ax.set_title(title, fontsize=10)
+        f"Response time (ratio vs N2)\nN2 geometric mean = {n2_rt_geom_s:.1f} s",
+        fontsize=8)
 
     r2 = pearson_r ** 2
     loo_line = (f"\nexcl. {loo_label}: r = {loo_pr:.2f}  p = {loo_pp:.3f}"
                 if loo_label else "")
     stats_txt = (f"Pearson  r = {pearson_r:.2f}  R² = {r2:.2f}  p = {pearson_p:.3f}\n"
                  f"Spearman ρ = {spearman_r:.2f}  p = {spearman_p:.3f}\n"
-                 f"n = {n} genotypes"
-                 f"{loo_line}")
-    ax.text(0.97, 0.97, stats_txt, transform=ax.transAxes, fontsize=7,
+                 f"n = {n} genotypes{loo_line}")
+    ax.text(0.97, 0.97, stats_txt, transform=ax.transAxes, fontsize=6.5,
             va="top", ha="right",
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="lightgray", alpha=0.9))
-
     ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=8)
-    plt.tight_layout()
+    ax.tick_params(labelsize=7)
+    return pearson_r, pearson_p, spearman_r, spearman_p
 
+
+def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
+                          out_path,
+                          title="Forward-run speed vs. stimulus response time"):
+    fig, ax = plt.subplots(figsize=(6, 5))
+    pr, pp, sr, sp_ = _draw_correlation_panel(
+        ax, sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm)
+    ax.set_title(title, fontsize=10)
+    plt.tight_layout()
     pdf_path = out_path.replace(".png", ".pdf")
     fig.savefig(pdf_path, bbox_inches="tight")
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"Saved figure: {pdf_path}")
     print(f"Saved figure: {out_path}")
     plt.close(fig)
-    return pearson_r, pearson_p, spearman_r, spearman_p
+    return pr, pp, sr, sp_
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -787,11 +798,12 @@ def main():
     else:
         n2_speed_mm = np.nan
 
-    # ── Supplemental figure: strip plot + overlapping ECDF (8.5 × 11) ────────
+    # ── Supplemental figure: strip + ECDF + correlation (8.5 × 11) ──────────
     supp_out = os.path.join(args.out_dir, "supplemental_sos_combined.png")
     make_combined_supplemental(
-        animal_df, recording_df, stat_df,
+        animal_df, recording_df, stat_df, speed_stat,
         n2_rt_geom_s=n2_rt_geom,
+        n2_speed_mm=n2_speed_mm,
         out_path=supp_out,
         title="33% octanol response time")
 
