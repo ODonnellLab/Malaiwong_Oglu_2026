@@ -86,6 +86,14 @@ DISPLAY_NAME = {
 }
 
 
+def _stars(q):
+    if pd.isna(q):       return ""
+    if q < 0.001:        return "***"
+    if q < 0.01:         return "**"
+    if q < 0.05:         return "*"
+    return ""
+
+
 # ── data loading ──────────────────────────────────────────────────────────────
 
 def load_sos_data(data_dir):
@@ -269,6 +277,162 @@ def fit_lme_sos(animal_df, out_dir):
     return stat_df, means, n2_mean_s
 
 
+# ── distribution plot (strip + ECDF) ─────────────────────────────────────────
+
+_DOT_N2       = "#2166ac"
+_DOT_MATCHED  = "#555555"
+_DOT_UNMATCHED = "#aaaaaa"
+_DIAMOND_MUT  = "#333333"
+
+
+def make_sos_distribution_plot(animal_df, recording_df, sos_stat, n2_rt_geom_s,
+                                out_path, title="Response time (ratio vs N2)"):
+    import matplotlib.lines as mlines
+
+    stat   = sos_stat.set_index("genotype")
+    order  = stat.sort_values("time_ratio").index.tolist()
+    present = set(animal_df["genotype"].unique())
+    # Insert N2 at its natural ratio-1.0 position (sorted, so near middle)
+    order  = [g for g in order if g in present and g != "N2"]
+    # find where N2 fits (ratio=1.0)
+    ratios = [stat.loc[g, "time_ratio"] if g in stat.index else np.nan for g in order]
+    n2_pos = next((i for i, r in enumerate(ratios) if not pd.isna(r) and r >= 1.0),
+                  len(order))
+    order.insert(n2_pos, "N2")
+
+    n_geno = len(order)
+    ytick  = {g: i for i, g in enumerate(order)}
+
+    # Per-date N2 median response time for normalizing strip-plot dots
+    n2_by_date = (animal_df[animal_df["genotype"] == "N2"]
+                  .groupby("date")["response_time"].median().to_dict())
+    n2_grand   = animal_df[animal_df["genotype"] == "N2"]["response_time"].median()
+
+    rec = recording_df.copy()
+    rec["n2_ref"]       = rec["date"].map(n2_by_date).fillna(n2_grand)
+    rec["rt_norm"]      = rec["median_rt"] / rec["n2_ref"]
+    rec["date_matched"] = rec["date"].isin(n2_by_date)
+
+    fig_h = max(8, n_geno * 0.45)
+    fig, (ax, ax_ecdf) = plt.subplots(
+        1, 2, sharey=True, figsize=(8.5, fig_h),
+        gridspec_kw={"width_ratios": [2, 1]})
+    fig.subplots_adjust(wspace=0.04)
+    fig.suptitle(title, fontsize=11, y=1.01)
+
+    # ── left panel: strip plot ────────────────────────────────────────────────
+    for _, row in rec.iterrows():
+        g = row["genotype"]
+        if g not in ytick or pd.isna(row["rt_norm"]):
+            continue
+        y = ytick[g]
+        x = row["rt_norm"]
+        if g == "N2":
+            ax.plot(x, y, "o", mfc=_DOT_N2, mec=_DOT_N2, ms=5, alpha=0.65, lw=0, zorder=2)
+        else:
+            ec = _DOT_MATCHED if row["date_matched"] else _DOT_UNMATCHED
+            fc = ec if row["date_matched"] else "none"
+            ax.plot(x, y, "o", mfc=fc, mec=ec, ms=5, alpha=0.65, lw=0, zorder=2)
+
+    for g in order:
+        y = ytick[g]
+        ax.axhline(y - 0.5, color="lightgray", lw=0.3, zorder=0)
+
+        if g == "N2":
+            vals = rec[rec["genotype"] == "N2"]["rt_norm"].dropna()
+            if vals.empty:
+                continue
+            ctr = vals.mean()
+            sem = vals.sem() if len(vals) > 1 else 0.0
+            ax.plot([ctr - sem, ctr + sem], [y, y], color=_DOT_N2,
+                    lw=2.5, solid_capstyle="round", zorder=4)
+            ax.plot(ctr, y, "D", color=_DOT_N2, ms=7, zorder=5, mec="white", mew=0.5)
+            ax.text(ctr, y + 0.19, f"{n2_rt_geom_s:.1f} s", fontsize=6.5,
+                    va="bottom", ha="center", color=_DOT_N2, alpha=0.85, zorder=7)
+            continue
+
+        if g not in stat.index or pd.isna(stat.loc[g, "time_ratio"]):
+            continue
+        r      = stat.loc[g]
+        ctr    = r["time_ratio"]
+        lo, hi = r["time_ratio_lo"], r["time_ratio_hi"]
+        q      = r.get("q", np.nan)
+        s      = _stars(q)
+        if s:
+            ax.text(hi + 0.05, y, s, fontsize=11, va="center", ha="left",
+                    color="#111111", fontweight="bold", zorder=6)
+        ax.plot([lo, hi], [y, y], color=_DIAMOND_MUT, lw=2.5,
+                solid_capstyle="round", zorder=4)
+        ax.plot(ctr, y, "D", color=_DIAMOND_MUT, ms=7, zorder=5, mec="white", mew=0.5)
+        ax.text(ctr, y + 0.19, f"{ctr:.2f}", fontsize=6.5, va="bottom",
+                ha="center", color=_DIAMOND_MUT, alpha=0.85, zorder=7)
+
+    ax.axvline(1.0, color="gray", lw=0.8, ls="--", alpha=0.5, zorder=0)
+    ax.set_xlabel("Response time (ratio vs N2)", fontsize=9)
+    ax.set_xlim(0, 3.0)
+    ax.set_ylim(-0.8, n_geno - 0.2)
+    ax.set_yticks(list(ytick.values()))
+    ax.set_yticklabels([DISPLAY_NAME.get(g, g) for g in order], fontsize=8)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(axis="x", labelsize=8)
+
+    leg_handles = [
+        mlines.Line2D([], [], color=_DOT_MATCHED,   marker="o", ls="none",
+                      label="Trial — same-date N2"),
+        mlines.Line2D([], [], color=_DOT_UNMATCHED, marker="o", mfc="none", ls="none",
+                      label="Trial — grand-mean N2"),
+        mlines.Line2D([], [], color=_DIAMOND_MUT,   marker="D", ls="none",
+                      mec="white", mew=0.5, label="LME estimate ± 95% CI"),
+        mlines.Line2D([], [], color=_DOT_N2,        marker="D", ls="none",
+                      mec="white", mew=0.5, label="N2 mean ± SEM"),
+    ]
+    max_dot = rec["rt_norm"].max(skipna=True)
+    xlim    = ax.get_xlim()
+    leg_x   = (max_dot - xlim[0]) / (xlim[1] - xlim[0]) + 0.01
+    ax.legend(handles=leg_handles, fontsize=7.5, framealpha=0.9,
+              loc="center left", bbox_to_anchor=(leg_x, 0.5))
+
+    # ── right panel: per-genotype ECDF ────────────────────────────────────────
+    ECDF_HW = 0.42   # max height of ECDF within each row
+
+    for g in order:
+        y_ctr = ytick[g]
+        ax_ecdf.axhline(y_ctr - 0.5, color="lightgray", lw=0.3, zorder=0)
+
+        vals = (animal_df[animal_df["genotype"] == g]["response_time"]
+                .dropna().sort_values().values)
+        if len(vals) == 0:
+            continue
+
+        color = _DOT_N2 if g == "N2" else _DOT_MATCHED
+        lw    = 1.2 if g == "N2" else 0.8
+
+        n       = len(vals)
+        ecdf_x  = np.concatenate([[0], vals])
+        ecdf_y  = np.concatenate([[0], np.arange(1, n + 1) / n])
+        # scale ECDF proportion [0,1] → [y_ctr, y_ctr + ECDF_HW]
+        ecdf_ys = y_ctr + ecdf_y * ECDF_HW
+
+        ax_ecdf.step(ecdf_x, ecdf_ys, where="post", color=color, lw=lw, alpha=0.75)
+        ax_ecdf.fill_between(ecdf_x, y_ctr, ecdf_ys, step="post",
+                             alpha=0.12, color=color)
+
+    ax_ecdf.axvline(NR_CEILING, color="gray", lw=0.5, ls=":", alpha=0.5)
+    ax_ecdf.set_xlim(0, NR_CEILING + 0.5)
+    ax_ecdf.set_xlabel(f"Response time (s)\nNR censored at {NR_CEILING:.0f} s", fontsize=9)
+    ax_ecdf.spines[["top", "right", "left"]].set_visible(False)
+    ax_ecdf.tick_params(axis="x", labelsize=8)
+    ax_ecdf.tick_params(axis="y", left=False)
+
+    plt.tight_layout()
+    pdf_path = out_path.replace(".png", ".pdf")
+    fig.savefig(pdf_path, bbox_inches="tight")
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    print(f"Saved figure: {pdf_path}")
+    print(f"Saved figure: {out_path}")
+    plt.close(fig)
+
+
 # ── correlation plot ──────────────────────────────────────────────────────────
 
 def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
@@ -441,6 +605,14 @@ def main():
         n2_speed_mm = rec_df[rec_df["genotype"] == "N2"]["speed"].mean()
     else:
         n2_speed_mm = np.nan
+
+    # ── distribution plot (strip + ECDF) ─────────────────────────────────────
+    dist_out = os.path.join(args.out_dir, "sos_distribution.png")
+    make_sos_distribution_plot(
+        animal_df, recording_df, stat_df,
+        n2_rt_geom_s=n2_rt_geom,
+        out_path=dist_out,
+        title="33% octanol response time")
 
     # ── correlation plot ───────────────────────────────────────────────────────
     fig_out = os.path.join(args.out_dir, "speed_sos_correlation.png")
