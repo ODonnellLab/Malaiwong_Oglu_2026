@@ -301,6 +301,15 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
     pearson_r,  pearson_p  = sp_stats.pearsonr(xs, ys)
     spearman_r, spearman_p = sp_stats.spearmanr(xs, ys)
 
+    # Leave-one-out sensitivity for each point; report the one that changes r most
+    loo_label, loo_pr, loo_pp, loo_sr, loo_sp = None, pearson_r, pearson_p, spearman_r, spearman_p
+    for i, lab in enumerate(labels):
+        mask = np.ones(n, dtype=bool); mask[i] = False
+        pr_i, pp_i = sp_stats.pearsonr(xs[mask], ys[mask])
+        sr_i, sp_i = sp_stats.spearmanr(xs[mask], ys[mask])
+        if abs(pr_i - pearson_r) > abs(loo_pr - pearson_r):
+            loo_label, loo_pr, loo_pp, loo_sr, loo_sp = lab, pr_i, pp_i, sr_i, sp_i
+
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.errorbar(xs, ys,
                 xerr=[xs - x_lo, x_hi - xs],
@@ -335,9 +344,13 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
         fontsize=9)
     ax.set_title(title, fontsize=10)
 
-    stats_txt = (f"Pearson  r = {pearson_r:.2f}  p = {pearson_p:.3f}\n"
+    r2 = pearson_r ** 2
+    loo_line = (f"\nexcl. {loo_label}: r = {loo_pr:.2f}  p = {loo_pp:.3f}"
+                if loo_label else "")
+    stats_txt = (f"Pearson  r = {pearson_r:.2f}  R² = {r2:.2f}  p = {pearson_p:.3f}\n"
                  f"Spearman ρ = {spearman_r:.2f}  p = {spearman_p:.3f}\n"
-                 f"n = {n} genotypes")
+                 f"n = {n} genotypes"
+                 f"{loo_line}")
     ax.text(0.97, 0.97, stats_txt, transform=ax.transAxes, fontsize=7,
             va="top", ha="right",
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="lightgray", alpha=0.9))
@@ -346,11 +359,11 @@ def make_correlation_plot(sos_stat, speed_stat, n2_rt_geom_s, n2_speed_mm,
     ax.tick_params(labelsize=8)
     plt.tight_layout()
 
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     pdf_path = out_path.replace(".png", ".pdf")
     fig.savefig(pdf_path, bbox_inches="tight")
-    print(f"Saved figure: {out_path}")
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"Saved figure: {pdf_path}")
+    print(f"Saved figure: {out_path}")
     plt.close(fig)
     return pearson_r, pearson_p, spearman_r, spearman_p
 
