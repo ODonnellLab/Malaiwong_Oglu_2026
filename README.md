@@ -5,9 +5,11 @@ Data and analysis code for the postural locomotion dataset from Malaiwong & Oglu
 
 ---
 
-## Quick start — reproduce the figure from cached data
+## Quick start — reproduce figures from cached data
 
-No NAS access required. The full per-particle and per-frame datasets are included.
+No NAS or external data access required. All per-animal datasets are included in `data/`.
+
+**Postural locomotion figure:**
 
 ```bash
 git clone https://github.com/ODonnellLab/Malaiwong_Oglu_2026.git
@@ -23,6 +25,19 @@ To re-run the LME models (requires R with lme4 and lmerTest):
 
 ```bash
 python batch_postural_comparison.py --out-dir data/ --exclude exclude.csv --refit
+```
+
+**SOS response time — combined conditions figure (supplemental):**
+
+```bash
+python sos_condition_plots.py --out-dir data/
+```
+
+This loads the cached per-animal SOS data from `data/sos_condition_animal_data.parquet`
+and regenerates the figure. To rescan from the raw ODLabPlotTools CSV files:
+
+```bash
+python sos_condition_plots.py --data-dir /path/to/SOS --out-dir data/
 ```
 
 ---
@@ -91,7 +106,9 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 
 | Path | Description |
 |------|-------------|
-| `batch_postural_comparison.py` | Analysis script — metrics, LME, figure |
+| `batch_postural_comparison.py` | Locomotion analysis — metrics, LME, figure |
+| `sos_condition_plots.py` | SOS response time — 4-condition barplot + ECDF supplemental figure |
+| `sos_analysis.py` | SOS combined analysis — strip plot, ECDF, speed correlation |
 | `exclude.csv` | Genotype/date pairs excluded before normalization |
 | `test_reproduce.py` | Reproduction test: demo (no NAS) and full NAS rescan |
 | `data/supplemental_particle_data.csv` | Per-particle raw metrics (13,709 particles) |
@@ -100,8 +117,16 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 | `data/recording_data.parquet` | Per-recording summary with normalized values |
 | `data/postural_comparison_stats.csv` | LME fold-change estimates and FDR q-values |
 | `data/postural_comparison.csv` | Per-recording summary CSV |
-| `data/postural_comparison.pdf` | Final figure (8.5 × 11 in, vector text) |
-| `data/postural_comparison.png` | Final figure (raster) |
+| `data/postural_comparison.pdf` | Locomotion figure (8.5 × 11 in, vector text) |
+| `data/postural_comparison.png` | Locomotion figure (raster) |
+| `data/sos_condition_animal_data.parquet` | Per-animal SOS response times across 4 conditions (N2, cest-2.1, tbh-1) |
+| `data/sos_condition_lmm_stats.csv` | Pre-computed LMM pairwise contrasts for each condition |
+| `data/sos_condition_plots.pdf` | SOS supplemental figure (8.5 × 11 in, vector text) |
+| `data/sos_condition_plots.png` | SOS supplemental figure (raster) |
+| `data/sos_animal_data.parquet` | Per-animal SOS data — 20 min off-food / 33% octanol, all genotypes |
+| `data/sos_stats.csv` | LMM time ratios vs N2 — all genotypes, 20 min off-food / octanol |
+| `data/speed_sos_correlation.pdf` | Speed vs response time correlation figure |
+| `data/supplemental_sos_combined.pdf` | SOS strip plot + ECDF + correlation supplemental figure |
 | `demo_data/` | 4-genotype subset for install verification (see below) |
 
 ---
