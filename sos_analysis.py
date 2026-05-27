@@ -679,16 +679,16 @@ def main():
     else:
         n2_speed_mm = np.nan
 
-    # ── distribution plot (strip + per-row ECDF) ─────────────────────────────
-    dist_out = os.path.join(args.out_dir, "sos_distribution.png")
+    # ── Supplemental Fig S1: strip plot + per-row ECDF ───────────────────────
+    dist_out = os.path.join(args.out_dir, "supplemental_sos_distribution.png")
     make_sos_distribution_plot(
         animal_df, recording_df, stat_df,
         n2_rt_geom_s=n2_rt_geom,
         out_path=dist_out,
         title="33% octanol response time")
 
-    # ── overlapping ECDF ──────────────────────────────────────────────────────
-    ecdf_out = os.path.join(args.out_dir, "sos_ecdf.png")
+    # ── Supplemental Fig S2: overlapping ECDF ────────────────────────────────
+    ecdf_out = os.path.join(args.out_dir, "supplemental_sos_ecdf.png")
     make_sos_ecdf_plot(
         animal_df, stat_df,
         n2_rt_geom_s=n2_rt_geom,
