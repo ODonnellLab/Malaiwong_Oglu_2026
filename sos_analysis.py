@@ -86,6 +86,46 @@ DISPLAY_NAME = {
 }
 
 
+# Canonical genotype → hex color from ODLabPlotTools/R/generate_genotype_colors.R
+# Keyed by display name (SOS semicolon convention).
+_CANONICAL_COLORS = {
+    "N2":                   "#888888",
+    "cest-2.1":             "#984F9F",
+    "tbh-1":                "#8E3E29",
+    "tdc-1":                "#C15C3E",
+    "cest-2.1; tbh-1":      "#8E3E29",
+    "tdc-1; tbh-1":         "#C15C3E",
+    "glo-1":                "#CC6677",
+    "fcmt-1":               "#44AA99",
+    "cat-1":                "#332288",
+    "bas-1":                "#1A2C7A",
+    "bas-1; cest-2.1":      "#1A2C7A",
+    "tph-1":                "#6699CC",
+    "tph-1; cest-2.1":      "#6699CC",
+    "cest-1.2":             "#4EAE49",
+    "sqv-7":                "#5F96CA",
+    "ugt-64":               "#546FB5",
+    "gba-4":                "#3954A5",
+    "ctg-1":                "#999933",
+    "slc-17.1":             "#46883F",
+    "T05A1.5":              "#4CB448",
+    "T10C6.6":              "#547A4C",
+    "octr-1":               "#117733",
+    "octr-1; ser-6":        "#3D9959",
+    "octr-1; ser-3; ser-6": "#66BB82",
+    "ser-3":                "#88DDAA",
+    "ser-6":                "#AAEEBB",
+    "nhr-49":               "#DDCC77",
+    "ser-2":                "#AA4499",
+    "tyra-2":               "#88CCEE",
+}
+
+
+def _geno_color(internal_name):
+    display = DISPLAY_NAME.get(internal_name, internal_name)
+    return _CANONICAL_COLORS.get(display, _CANONICAL_COLORS.get(internal_name, "#AAAAAA"))
+
+
 def _stars(q):
     if pd.isna(q):       return ""
     if q < 0.001:        return "***"
@@ -399,24 +439,15 @@ def make_sos_distribution_plot(animal_df, recording_df, sos_stat, n2_rt_geom_s,
 
 # ── overlapping ECDF figure ───────────────────────────────────────────────────
 
-def make_sos_ecdf_plot(animal_df, sos_stat, n2_rt_geom_s, out_path,
-                       title="33% octanol response time — all genotypes"):
+def _draw_ecdf_panel(ax, animal_df, sos_stat, n2_rt_geom_s):
+    """Draw overlapping ECDFs onto ax. Canonical colors; significant genotypes labeled."""
     stat = sos_stat.set_index("genotype")
+    sig  = {g for g in stat.index
+            if g != "N2" and not pd.isna(stat.loc[g, "q"]) and stat.loc[g, "q"] < 0.05}
+    sig_order = (stat.loc[list(sig), "time_ratio"].sort_values().index.tolist()
+                 if sig else [])
 
-    # Significant genotypes (q < 0.05), excluding N2
-    sig = {g for g in stat.index
-           if g != "N2" and not pd.isna(stat.loc[g, "q"]) and stat.loc[g, "q"] < 0.05}
-
-    # Color palette for significant genotypes (ordered by time ratio)
-    sig_order = (stat.loc[list(sig), "time_ratio"]
-                 .sort_values().index.tolist())
-    cmap   = matplotlib.colormaps.get_cmap("tab20").resampled(max(len(sig_order), 1))
-    colors = {g: cmap(i) for i, g in enumerate(sig_order)}
-
-    fig, ax = plt.subplots(figsize=(7, 5))
-
-    genotypes = animal_df["genotype"].unique()
-    for g in genotypes:
+    for g in animal_df["genotype"].unique():
         if g == "N2":
             continue
         vals = (animal_df[animal_df["genotype"] == g]["response_time"]
@@ -428,38 +459,153 @@ def make_sos_ecdf_plot(animal_df, sos_stat, n2_rt_geom_s, out_path,
         ecdf_y = np.concatenate([[0], np.arange(1, n + 1) / n, [1.0]])
 
         if g in sig:
-            label = DISPLAY_NAME.get(g, g)
-            q_val = stat.loc[g, "q"]
-            s     = _stars(q_val)
+            color = _geno_color(g)
+            label = f"{DISPLAY_NAME.get(g, g)} {_stars(stat.loc[g, 'q'])}"
             ax.step(ecdf_x, ecdf_y, where="post",
-                    color=colors[g], lw=1.4, alpha=0.85,
-                    label=f"{label} {s}", zorder=3)
+                    color=color, lw=1.4, alpha=0.85, label=label, zorder=3)
         else:
             ax.step(ecdf_x, ecdf_y, where="post",
-                    color="lightgray", lw=0.7, alpha=0.6, zorder=1)
+                    color="lightgray", lw=0.7, alpha=0.5, zorder=1)
 
-    # N2 last so it's on top
+    # N2 on top
     n2_vals = (animal_df[animal_df["genotype"] == "N2"]["response_time"]
                .dropna().sort_values().values)
-    n       = len(n2_vals)
-    ecdf_x  = np.concatenate([[0], n2_vals, [NR_CEILING]])
-    ecdf_y  = np.concatenate([[0], np.arange(1, n + 1) / n, [1.0]])
-    ax.step(ecdf_x, ecdf_y, where="post",
-            color=_DOT_N2, lw=2.0, alpha=0.9,
-            label=f"N2  (geom mean {n2_rt_geom_s:.1f} s)", zorder=4)
+    n2_x = np.concatenate([[0], n2_vals, [NR_CEILING]])
+    n2_y = np.concatenate([[0], np.arange(1, len(n2_vals) + 1) / len(n2_vals), [1.0]])
+    ax.step(n2_x, n2_y, where="post", color=_CANONICAL_COLORS["N2"], lw=2.0,
+            alpha=0.9, label=f"N2  (geom mean {n2_rt_geom_s:.1f} s)", zorder=4)
 
     ax.axvline(NR_CEILING, color="gray", lw=0.6, ls=":", alpha=0.5)
-    ax.set_xlabel("Response time (s) — NR censored at 20 s", fontsize=9)
+    ax.set_xlabel("Response time (s)\nNR censored at 20 s", fontsize=9)
     ax.set_ylabel("Cumulative fraction", fontsize=9)
     ax.set_xlim(0, NR_CEILING + 0.5)
     ax.set_ylim(0, 1.02)
-    ax.set_title(title, fontsize=10)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=8)
     ax.legend(fontsize=7, framealpha=0.9, loc="lower right",
               title="Significant (q < 0.05)", title_fontsize=7)
 
+
+def make_sos_ecdf_plot(animal_df, sos_stat, n2_rt_geom_s, out_path,
+                       title="33% octanol response time — all genotypes"):
+    fig, ax = plt.subplots(figsize=(7, 5))
+    _draw_ecdf_panel(ax, animal_df, sos_stat, n2_rt_geom_s)
+    ax.set_title(title, fontsize=10)
     plt.tight_layout()
+    pdf_path = out_path.replace(".png", ".pdf")
+    fig.savefig(pdf_path, bbox_inches="tight")
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    print(f"Saved figure: {pdf_path}")
+    print(f"Saved figure: {out_path}")
+    plt.close(fig)
+
+
+def make_combined_supplemental(animal_df, recording_df, sos_stat, n2_rt_geom_s,
+                                out_path, title="33% octanol response time"):
+    """Strip plot (left) + overlapping ECDF (right) on a single 8.5 × 11 page."""
+    import matplotlib.lines as mlines
+
+    stat   = sos_stat.set_index("genotype")
+    order  = stat.sort_values("time_ratio").index.tolist()
+    present = set(animal_df["genotype"].unique())
+    order   = [g for g in order if g in present and g != "N2"]
+    ratios  = [stat.loc[g, "time_ratio"] if g in stat.index else np.nan for g in order]
+    n2_pos  = next((i for i, r in enumerate(ratios) if not pd.isna(r) and r >= 1.0),
+                   len(order))
+    order.insert(n2_pos, "N2")
+
+    n_geno = len(order)
+    ytick  = {g: i for i, g in enumerate(order)}
+
+    n2_by_date = (animal_df[animal_df["genotype"] == "N2"]
+                  .groupby("date")["response_time"].median().to_dict())
+    n2_grand   = animal_df[animal_df["genotype"] == "N2"]["response_time"].median()
+
+    rec = recording_df.copy()
+    rec["n2_ref"]       = rec["date"].map(n2_by_date).fillna(n2_grand)
+    rec["rt_norm"]      = rec["median_rt"] / rec["n2_ref"]
+    rec["date_matched"] = rec["date"].isin(n2_by_date)
+
+    fig = plt.figure(figsize=(8.5, 11))
+    gs  = fig.add_gridspec(1, 2, width_ratios=[1.6, 1],
+                           left=0.17, right=0.97, top=0.96, bottom=0.05,
+                           wspace=0.10)
+    ax_strip = fig.add_subplot(gs[0])
+    ax_ecdf  = fig.add_subplot(gs[1])
+
+    fig.suptitle(title, fontsize=11, y=0.99)
+
+    # ── strip plot ────────────────────────────────────────────────────────────
+    for _, row in rec.iterrows():
+        g = row["genotype"]
+        if g not in ytick or pd.isna(row["rt_norm"]):
+            continue
+        y = ytick[g]
+        x = row["rt_norm"]
+        if g == "N2":
+            ax_strip.plot(x, y, "o", mfc=_DOT_N2, mec=_DOT_N2,
+                          ms=5, alpha=0.65, lw=0, zorder=2)
+        else:
+            ec = _DOT_MATCHED if row["date_matched"] else _DOT_UNMATCHED
+            fc = ec if row["date_matched"] else "none"
+            ax_strip.plot(x, y, "o", mfc=fc, mec=ec, ms=5, alpha=0.65, lw=0, zorder=2)
+
+    for g in order:
+        y = ytick[g]
+        ax_strip.axhline(y - 0.5, color="lightgray", lw=0.3, zorder=0)
+        if g == "N2":
+            vals = rec[rec["genotype"] == "N2"]["rt_norm"].dropna()
+            if vals.empty:
+                continue
+            ctr = vals.mean()
+            sem = vals.sem() if len(vals) > 1 else 0.0
+            ax_strip.plot([ctr - sem, ctr + sem], [y, y], color=_DOT_N2,
+                          lw=2.5, solid_capstyle="round", zorder=4)
+            ax_strip.plot(ctr, y, "D", color=_DOT_N2, ms=7, zorder=5,
+                          mec="white", mew=0.5)
+            ax_strip.text(ctr, y + 0.19, f"{n2_rt_geom_s:.1f} s", fontsize=6.5,
+                          va="bottom", ha="center", color=_DOT_N2, zorder=7)
+            continue
+        if g not in stat.index or pd.isna(stat.loc[g, "time_ratio"]):
+            continue
+        r      = stat.loc[g]
+        ctr    = r["time_ratio"]
+        lo, hi = r["time_ratio_lo"], r["time_ratio_hi"]
+        s      = _stars(r.get("q", np.nan))
+        if s:
+            ax_strip.text(hi + 0.05, y, s, fontsize=9, va="center", ha="left",
+                          color="#111111", fontweight="bold", zorder=6)
+        ax_strip.plot([lo, hi], [y, y], color=_DIAMOND_MUT, lw=2.5,
+                      solid_capstyle="round", zorder=4)
+        ax_strip.plot(ctr, y, "D", color=_DIAMOND_MUT, ms=7, zorder=5,
+                      mec="white", mew=0.5)
+        ax_strip.text(ctr, y + 0.19, f"{ctr:.2f}", fontsize=6.5, va="bottom",
+                      ha="center", color=_DIAMOND_MUT, zorder=7)
+
+    ax_strip.axvline(1.0, color="gray", lw=0.8, ls="--", alpha=0.5, zorder=0)
+    ax_strip.set_xlabel("Response time (ratio vs N2)", fontsize=9)
+    ax_strip.set_xlim(0, 3.0)
+    ax_strip.set_ylim(-0.8, n_geno - 0.2)
+    ax_strip.set_yticks(list(ytick.values()))
+    ax_strip.set_yticklabels([DISPLAY_NAME.get(g, g) for g in order], fontsize=7.5)
+    ax_strip.spines[["top", "right"]].set_visible(False)
+    ax_strip.tick_params(axis="x", labelsize=8)
+
+    leg_handles = [
+        mlines.Line2D([], [], color=_DOT_MATCHED,   marker="o", ls="none",
+                      label="Trial — same-date N2"),
+        mlines.Line2D([], [], color=_DOT_UNMATCHED, marker="o", mfc="none", ls="none",
+                      label="Trial — grand-mean N2"),
+        mlines.Line2D([], [], color=_DIAMOND_MUT,   marker="D", ls="none",
+                      mec="white", mew=0.5, label="LME estimate ± 95% CI"),
+        mlines.Line2D([], [], color=_DOT_N2,        marker="D", ls="none",
+                      mec="white", mew=0.5, label="N2 mean ± SEM"),
+    ]
+    ax_strip.legend(handles=leg_handles, fontsize=7, framealpha=0.9, loc="upper right")
+
+    # ── ECDF panel ────────────────────────────────────────────────────────────
+    _draw_ecdf_panel(ax_ecdf, animal_df, sos_stat, n2_rt_geom_s)
+
     pdf_path = out_path.replace(".png", ".pdf")
     fig.savefig(pdf_path, bbox_inches="tight")
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
@@ -641,21 +787,13 @@ def main():
     else:
         n2_speed_mm = np.nan
 
-    # ── Supplemental Fig S1: strip plot + per-row ECDF ───────────────────────
-    dist_out = os.path.join(args.out_dir, "supplemental_sos_distribution.png")
-    make_sos_distribution_plot(
+    # ── Supplemental figure: strip plot + overlapping ECDF (8.5 × 11) ────────
+    supp_out = os.path.join(args.out_dir, "supplemental_sos_combined.png")
+    make_combined_supplemental(
         animal_df, recording_df, stat_df,
         n2_rt_geom_s=n2_rt_geom,
-        out_path=dist_out,
+        out_path=supp_out,
         title="33% octanol response time")
-
-    # ── Supplemental Fig S2: overlapping ECDF ────────────────────────────────
-    ecdf_out = os.path.join(args.out_dir, "supplemental_sos_ecdf.png")
-    make_sos_ecdf_plot(
-        animal_df, stat_df,
-        n2_rt_geom_s=n2_rt_geom,
-        out_path=ecdf_out,
-        title="33% octanol response time — all genotypes")
 
     # ── correlation plot ───────────────────────────────────────────────────────
     fig_out = os.path.join(args.out_dir, "speed_sos_correlation.png")
