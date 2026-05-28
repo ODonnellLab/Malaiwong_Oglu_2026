@@ -40,6 +40,18 @@ and regenerates the figure. To rescan from the raw ODLabPlotTools CSV files:
 python sos_condition_plots.py --data-dir /path/to/SOS --out-dir data/
 ```
 
+**SOS per-genotype figures (`data/sos_figures/`):**
+
+```bash
+python sos_figure_plots.py --data-dir /path/to/raw_figure_data --out-dir data/sos_figures/
+```
+
+Regenerates all per-genotype SOS barplot + ECDF figures. For the epistasis figure (1e):
+
+```bash
+python sos_epistasis_plots.py --data-dir /path/to/raw_figure_data --out-dir data/sos_figures/
+```
+
 ---
 
 ## Full pipeline — from raw video to figure
@@ -104,13 +116,24 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 
 ## Repository contents
 
-| Path | Description |
-|------|-------------|
+### Analysis scripts
+
+| Script | Description |
+|--------|-------------|
 | `batch_postural_comparison.py` | Locomotion analysis — metrics, LME, figure |
-| `sos_condition_plots.py` | SOS response time — 4-condition barplot + ECDF supplemental figure |
-| `sos_analysis.py` | SOS combined analysis — strip plot, ECDF, speed correlation |
+| `sos_style.py` | **Shared style module** — layout constants, colors, ECDF helpers used by all SOS scripts |
+| `sos_condition_plots.py` | SOS 4-condition barplot + 2×2 ECDF (N2, cest-2.1, tbh-1) |
+| `sos_epistasis_plots.py` | SOS epistasis barplot + paired ECDFs (figure 1e) |
+| `sos_figure_plots.py` | All other per-genotype SOS barplot + ECDF figures |
+| `sos_analysis.py` | SOS strip plot, ECDF, and speed correlation |
 | `exclude.csv` | Genotype/date pairs excluded before normalization |
 | `test_reproduce.py` | Reproduction test: demo (no NAS) and full NAS rescan |
+| `SESSION_NOTES.md` | Figure style conventions and layout decisions |
+
+### Data files
+
+| Path | Description |
+|------|-------------|
 | `data/supplemental_particle_data.csv` | Per-particle raw metrics (13,709 particles) |
 | `data/fwd_frame_data.parquet` | Per-forward-run-frame speed data used by LME |
 | `data/particle_data.parquet` | Per-particle cache |
@@ -119,13 +142,13 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 | `data/postural_comparison.csv` | Per-recording summary CSV |
 | `data/postural_comparison.pdf` | Locomotion figure (8.5 × 11 in, vector text) |
 | `data/postural_comparison.png` | Locomotion figure (raster) |
-| `data/sos_condition_animal_data.parquet` | Per-animal SOS response times across 4 conditions (N2, cest-2.1, tbh-1) |
+| `data/sos_condition_animal_data.parquet` | Per-animal SOS response times — 4 conditions (N2, cest-2.1, tbh-1) |
 | `data/sos_condition_lmm_stats.csv` | Pre-computed LMM pairwise contrasts for each condition |
-| `data/sos_condition_plots.pdf` | SOS supplemental figure (8.5 × 11 in, vector text) |
-| `data/sos_condition_plots.png` | SOS supplemental figure (raster) |
+| `data/sos_condition_plots.pdf` | SOS 4-condition supplemental figure |
+| `data/sos_figures/` | Per-genotype SOS barplot + ECDF figures (one PDF + PNG per dataset) |
 | `data/sos_animal_data.parquet` | Per-animal SOS data — 20 min off-food / 33% octanol, all genotypes |
-| `data/sos_stats.csv` | LMM time ratios vs N2 — all genotypes, 20 min off-food / octanol |
-| `data/speed_sos_correlation.pdf` | Speed vs response time correlation figure |
+| `data/sos_stats.csv` | LMM time ratios vs N2 — all genotypes |
+| `data/speed_sos_correlation.pdf` | Speed vs SOS response time correlation |
 | `data/supplemental_sos_combined.pdf` | SOS strip plot + ECDF + correlation supplemental figure |
 | `demo_data/` | 4-genotype subset for install verification (see below) |
 
@@ -169,6 +192,69 @@ Install R packages:
 ```r
 install.packages(c("lme4", "lmerTest"))
 ```
+
+---
+
+## SOS figure pipeline
+
+All per-genotype SOS figures share a common style defined in `sos_style.py`. The three
+figure scripts (`sos_condition_plots.py`, `sos_epistasis_plots.py`, `sos_figure_plots.py`)
+import from it so that bar width, ECDF panel size, font, and colors are consistent across
+all figures without duplication.
+
+### Regenerating SOS figures
+
+Each script reads cached parquet files from `data/` (or rescans raw CSVs with `--data-dir`):
+
+```bash
+# 4-condition barplot (figure 1c supplemental)
+python sos_condition_plots.py --out-dir data/
+
+# Epistasis barplot + ECDFs (figure 1e)
+python sos_epistasis_plots.py --out-dir data/sos_figures/
+
+# All other per-genotype figures
+python sos_figure_plots.py --data-dir /path/to/raw_figure_data --out-dir data/sos_figures/
+
+# Single figure only
+python sos_figure_plots.py --data-dir /path/to/raw_figure_data \
+                           --out-dir data/sos_figures/ \
+                           --file 3e_cest-2.1\ rescues_SOSdata.csv
+```
+
+### Grouping configurations
+
+`sos_figure_plots.py` reads an optional YAML config alongside each CSV to control
+bar grouping and x-axis segmentation. A config is required for any figure with
+rescue lines or paired comparisons; figures without a config use flat uniform spacing.
+
+Config files live in the raw data directory and are named `<csv_stem>_config.yaml`:
+
+```yaml
+# Example: 3e_cest-2.1 rescues_SOSdata_config.yaml
+groups:
+  - [N2]
+  - [PHX3900, MOY0066, MOY0065]   # cest-2.1 | cest-2.1 [RIC] | cest-2.1 [GUT]
+intra_spacing: 0.22   # center-to-center within a group (data units)
+inter_spacing: 0.42   # center-to-center between groups (data units)
+```
+
+Groups reference Strain_IDs from the CSV. Within a group bars are drawn at `intra_spacing`
+apart; a break in the x-axis line marks the boundary between groups.
+
+### Modifying the shared style
+
+Edit `sos_style.py` to change any visual property across all SOS figures at once.
+Key constants:
+
+| Constant | Value | Effect |
+|----------|-------|--------|
+| `BAR_SCALE` | 0.68 in/unit | Physical bar width — same across all figures |
+| `ECDF_W × ECDF_H` | 1.543 × 0.847 in | ECDF panel size — same across all figures |
+| `CONTENT_H` | 2.160 in | Fixed content height (= 2 ECDF rows + gap) |
+| `B_FLAT / B_ROT` | 0.54 / 0.72 in | Bottom margin for flat vs rotated x-labels |
+
+See `SESSION_NOTES.md` for full layout conventions and typography rules.
 
 ---
 
