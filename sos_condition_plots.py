@@ -17,53 +17,44 @@ Usage:
 import argparse
 import os
 
-import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.transforms import blended_transform_factory
 
-matplotlib.rcParams["pdf.fonttype"] = 42
-matplotlib.rcParams["ps.fonttype"]  = 42
-
-NR_CEILING = 20.0
+import sos_style
+from sos_style import NR_CEILING
 
 STRAIN_ID_TO_GENO = {"N2": "N2", "PHX3900": "cest-2.1", "RB1161": "tbh-1"}
-GENO_ORDER   = ["N2", "cest-2.1", "tbh-1"]
-GENO_COLORS  = {"N2": "#888888", "cest-2.1": "#984F9F", "tbh-1": "#8E3E29"}
+GENO_ORDER  = ["N2", "cest-2.1", "tbh-1"]
+GENO_COLORS = {g: sos_style.COLORS[g] for g in GENO_ORDER}
 
 CONDITION_CONFIGS = [
     dict(data_file="1c_3minOffFood_33OctVSNoOdor_SOSdata.csv",
          stats_prefix="1c_3minOffFood_33OctVSNoOdor_SOSdata",
          condition="3 min off-food", odor="no",
-         label="3 min / no odor",    short="3 min\nno odor",  color="#BBBBBB"),
+         label="3 min / no odor",    color="#BBBBBB"),
     dict(data_file="1c_3minOffFood_33OctVSNoOdor_SOSdata.csv",
          stats_prefix="1c_3minOffFood_33OctVSNoOdor_SOSdata",
          condition="3 min off-food", odor="33% octanol",
-         label="3 min / octanol",    short="3 min\noctanol",  color="#E8974A"),
+         label="3 min / octanol",    color="#E8974A"),
     dict(data_file="1c_N2cest-2.1tbh-1_33octanol_SOSdata.csv",
          stats_prefix="1c_N2cest-2.1tbh-1_33octanol_SOSdata",
          condition="control",        odor="33% octanol",
-         label="20 min / octanol",   short="20 min\noctanol", color="#2166AC"),
+         label="20 min / octanol",   color="#2166AC"),
     dict(data_file="1c_N2cest2.1tbh-1_10nonanone_SOSdata.csv",
          stats_prefix="1c_N2cest2.1tbh-1_10nonanone_SOSdata",
          condition="control",        odor="10% nonanone",
-         label="20 min / nonanone",  short="20 min\nnonanone", color="#1B7837"),
+         label="20 min / nonanone",  color="#1B7837"),
 ]
 
-# Bar geometry
-_BAR_W    = 0.28
-_BAR_STEP = 0.32                               # bar_width + small gap
-_COND_OFF = [_BAR_STEP * (j - 1.5) for j in range(4)]   # [-0.48,-0.16,+0.16,+0.48]
-_GENO_X   = {g: i * 2.2 for i, g in enumerate(GENO_ORDER)}  # cluster centers
-
-
-def _stars(p):
-    if pd.isna(p): return ""
-    if p < 0.001:  return "***"
-    if p < 0.01:   return "**"
-    if p < 0.05:   return "*"
-    return ""
+# Bar geometry — spacing large because conditions are nested within genotypes
+_BAR_STEP = 0.20                                 # center-to-center within a genotype
+_COND_OFF = [_BAR_STEP * (j - 1.5) for j in range(4)]  # [-0.30,-0.10,+0.10,+0.30]
+_GENO_X   = {g: i * 1.05 for i, g in enumerate(GENO_ORDER)}
+_X_LO     = min(_GENO_X.values()) - 0.40
+_X_HI     = max(_GENO_X.values()) + 0.40
 
 
 # ── data loading ──────────────────────────────────────────────────────────────
@@ -106,9 +97,7 @@ def daily_medians(animal_df):
             .median().reset_index().rename(columns={"Response.time": "median_rt"}))
 
 
-
 def bar_stats(dm_df):
-    """Mean ± SEM of daily medians per genotype."""
     def _sem(x):
         return x.std(ddof=1) / np.sqrt(len(x)) if len(x) > 1 else 0.0
     return (dm_df.groupby("Genotype")["median_rt"]
@@ -117,7 +106,6 @@ def bar_stats(dm_df):
 
 
 def load_lmm_stats(data_dir, cfg):
-    """Return (means_df indexed by genotype, pvals dict)."""
     means = pd.read_csv(os.path.join(data_dir, cfg["stats_prefix"] + "_LMMmeans.csv"))
     stats = pd.read_csv(os.path.join(data_dir, cfg["stats_prefix"] + "_LMMstats.csv"))
     means["genotype"] = means["Strain_ID"].map(STRAIN_ID_TO_GENO)
@@ -139,15 +127,6 @@ def load_lmm_stats(data_dir, cfg):
 # ── barplot ───────────────────────────────────────────────────────────────────
 
 def draw_combined_barplot(ax, all_data):
-    """
-    all_data: list of dicts, one per condition —
-        cfg, animal_df, dm_df, lmm_means, pvals
-
-    Bars:   LMM geometric mean ± SE (from _LMMmeans.csv)
-    Dots:   individual animals (translucent, condition color; NR = open circle)
-    Black:  per-day medians (scaled by n_days for size)
-    Stars:  LMM BH-adjusted significance vs N2
-    """
     rng = np.random.default_rng(42)
 
     for ci, cdata in enumerate(all_data):
@@ -156,102 +135,64 @@ def draw_combined_barplot(ax, all_data):
         for g in GENO_ORDER:
             xc = _GENO_X[g] + offset
 
-            # Individual animals
             sub = cdata["animal_df"][cdata["animal_df"]["Genotype"] == g]
             if not sub.empty:
                 rt = sub["Response.time"].values
                 nr = sub["is_nr"].values
-                xs = xc + rng.uniform(-0.09, 0.09, len(sub))
+                xs = xc + rng.uniform(-0.05, 0.05, len(sub))
                 ax.scatter(xs[~nr], rt[~nr], s=4, color=color,
                            alpha=0.25, zorder=2, lw=0)
                 if nr.any():
                     ax.scatter(xs[nr], rt[nr], s=5, facecolors="none",
                                edgecolors=color, alpha=0.45, zorder=2, lw=0.5)
 
-            # Bar: mean of daily medians ± SEM
             bs = cdata["bs_df"]
             if g in bs.index and not np.isnan(bs.loc[g, "mean"]):
                 m, se = bs.loc[g, "mean"], bs.loc[g, "sem"]
-                ax.bar(xc, m, width=_BAR_W, color=color, alpha=0.72,
+                ax.bar(xc, m, width=sos_style.BAR_W, color=color, alpha=0.72,
                        zorder=3, edgecolor="none")
                 ax.errorbar(xc, m, yerr=se,
                             fmt="none", color="black", capsize=2.5,
                             lw=1.0, zorder=4)
 
-            # Daily medians: black dots, size proportional to n days
             dm = cdata["dm_df"][cdata["dm_df"]["Genotype"] == g]
             if not dm.empty:
-                xs_dm = xc + rng.uniform(-0.06, 0.06, len(dm))
-                ax.scatter(xs_dm, dm["median_rt"].values, s=20,
+                xs_dm = xc + rng.uniform(-0.04, 0.04, len(dm))
+                ax.scatter(xs_dm, dm["median_rt"].values, s=13,
                            color="black", zorder=5, lw=0)
 
-            # Significance stars vs N2
             if g != "N2":
                 p = cdata["pvals"].get(("N2", g), np.nan)
-                s = _stars(p)
+                s = sos_style.stars(p)
                 if s:
                     ax.text(xc, NR_CEILING * 1.09, s, ha="center", va="bottom",
                             fontsize=8, fontweight="bold", color="black", zorder=6)
 
     ax.axhline(NR_CEILING, color="gray", lw=0.6, ls=":", alpha=0.5)
-
-    x_lo = min(_GENO_X.values()) - 0.7
-    x_hi = max(_GENO_X.values()) + 0.7
-    ax.set_xlim(x_lo, x_hi)
+    ax.set_xlim(_X_LO, _X_HI)
     ax.set_ylim(0, NR_CEILING * 1.38)
     ax.set_xticks(list(_GENO_X.values()))
-    ax.set_xticklabels(GENO_ORDER, fontsize=9)
+    sos_style.set_xticklabels(ax, GENO_ORDER, fontsize=9)
+    ax.set_yticks([0, 5, 10, 15, 20])
     ax.set_ylabel("Response time (s)", fontsize=9)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=8)
+    ax.spines[["top", "right", "bottom"]].set_visible(False)
+    ax.tick_params(axis="x", bottom=False, labelsize=9)
+    ax.tick_params(axis="y", labelsize=8)
 
-    # Condition legend
+    trans    = blended_transform_factory(ax.transData, ax.transAxes)
+    seg_half = abs(_COND_OFF[0]) + sos_style.BAR_W / 2 + 0.03
+    for i, g in enumerate(GENO_ORDER):
+        xc = _GENO_X[g]
+        lo = _X_LO if i == 0                    else xc - seg_half
+        hi = _X_HI if i == len(GENO_ORDER) - 1 else xc + seg_half
+        ax.plot([lo, hi], [0, 0], color="black", lw=0.8,
+                clip_on=False, transform=trans)
+
     cond_handles = [
         mpatches.Patch(color=cfg["color"], alpha=0.8, label=cfg["label"])
         for cfg in CONDITION_CONFIGS
     ]
-    l1 = ax.legend(handles=cond_handles, fontsize=7.5, framealpha=0.9,
-                   loc="upper right", title="Starvation / odorant",
-                   title_fontsize=7.5)
-    ax.add_artist(l1)
-
-    # Dot legend
-    import matplotlib.lines as mlines
-    dot_handles = [
-        mlines.Line2D([0], [0], marker="o", color="w", markerfacecolor="gray",
-                      markersize=4, label="Individual animal"),
-        mlines.Line2D([0], [0], marker="o", color="w", markerfacecolor="none",
-                      markeredgecolor="gray", markersize=4,
-                      label="NR (censored 20 s)"),
-        mlines.Line2D([0], [0], marker="o", color="w", markerfacecolor="black",
-                      markersize=6, label="Daily median"),
-    ]
-    ax.legend(handles=dot_handles, fontsize=7, framealpha=0.9, loc="upper left")
-
-
-# ── ECDF ─────────────────────────────────────────────────────────────────────
-
-def draw_ecdf(ax, animal_df, title=""):
-    for g in GENO_ORDER:
-        vals = (animal_df[animal_df["Genotype"] == g]["Response.time"]
-                .dropna().sort_values().values)
-        if len(vals) == 0:
-            continue
-        n     = len(vals)
-        x     = np.concatenate([[0], vals, [NR_CEILING]])
-        y     = np.concatenate([[0], np.arange(1, n + 1) / n, [1.0]])
-        color = GENO_COLORS.get(g, "#aaaaaa")
-        ax.step(x, y, where="post", color=color, lw=1.8, label=g)
-
-    ax.axvline(NR_CEILING, color="gray", lw=0.6, ls=":", alpha=0.5)
-    ax.set_xlabel("Response time (s)", fontsize=7.5)
-    ax.set_ylabel("Cumulative fraction", fontsize=7.5)
-    ax.set_xlim(0, NR_CEILING + 0.3)
-    ax.set_ylim(0, 1.02)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.tick_params(labelsize=7)
-    ax.legend(fontsize=6.5, framealpha=0.9, loc="lower right")
-    ax.set_title(title, fontsize=8, pad=3)
+    return cond_handles, sos_style.dot_legend_handles()
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -281,23 +222,17 @@ def main():
     stats_cache  = os.path.join(args.out_dir, "sos_condition_lmm_stats.csv")
 
     if args.data_dir:
-        # Rescan: load from raw CSVs and write caches
         animal_dfs, stats_dfs = [], []
         for cfg in CONDITION_CONFIGS:
             adf = load_condition_data(args.data_dir, cfg)
-            adf = adf.copy()
             adf["condition"] = cfg["label"]
             animal_dfs.append(adf)
-
-            _, stats_raw = load_lmm_stats(args.data_dir, cfg)
-            # Reconstruct a DataFrame from the pvals dict for caching
             src = pd.read_csv(
                 os.path.join(args.data_dir, cfg["stats_prefix"] + "_LMMstats.csv"))
             if "Odor" in src.columns:
                 src = src[src["Odor"] == cfg["odor"]].copy()
             src["condition"] = cfg["label"]
             stats_dfs.append(src)
-
         animal_combined = pd.concat(animal_dfs, ignore_index=True)
         stats_combined  = pd.concat(stats_dfs,  ignore_index=True)
         animal_combined.to_parquet(animal_cache, index=False)
@@ -310,7 +245,6 @@ def main():
         animal_combined = pd.read_parquet(animal_cache)
         stats_combined  = pd.read_csv(stats_cache)
 
-    # Build per-condition data structures
     all_data = []
     for cfg in CONDITION_CONFIGS:
         adf  = animal_combined[animal_combined["condition"] == cfg["label"]].copy()
@@ -321,30 +255,48 @@ def main():
         all_data.append(dict(cfg=cfg, animal_df=adf, dm_df=dmdf,
                              bs_df=bsdf, pvals=pv))
 
-    # Figure: barplot on top, 2×2 ECDF grid below
-    fig = plt.figure(figsize=(8.5, 11))
-    gs  = fig.add_gridspec(
-        3, 2,
-        height_ratios=[1.6, 1.0, 1.0],
-        left=0.10, right=0.97, top=0.95, bottom=0.04,
-        hspace=0.50, wspace=0.35)
+    # Fixed-inch layout — width computed from content
+    S  = sos_style
+    bar_w    = (_X_HI - _X_LO) * S.BAR_SCALE
+    ecdf_blk = 2 * S.ECDF_W + S.ECDF_HGAP
+    fig_w    = S.L_MAR + bar_w + S.BAR_LGD + S.LGD_W + S.LGD_ECDF + ecdf_blk + S.R_MAR
+    fig_h    = S.T_MAR + S.CONTENT_H + S.B_FLAT
 
-    ax_bar  = fig.add_subplot(gs[0, :])
+    fig = plt.figure(figsize=(fig_w, fig_h))
+
+    def _ax(l, b, w, h):
+        return S.make_ax(fig, fig_w, fig_h, l, b, w, h)
+
+    ax_bar = _ax(S.L_MAR, S.B_FLAT, bar_w, S.CONTENT_H)
+
+    ecdf_l  = S.L_MAR + bar_w + S.BAR_LGD + S.LGD_W + S.LGD_ECDF
     ax_ecdf = [
-        fig.add_subplot(gs[1, 0]),   # no odor
-        fig.add_subplot(gs[1, 1]),   # 3 min octanol
-        fig.add_subplot(gs[2, 0]),   # 20 min octanol
-        fig.add_subplot(gs[2, 1]),   # nonanone
+        _ax(ecdf_l,                   S.B_FLAT + S.ECDF_H + S.ECDF_VGAP, S.ECDF_W, S.ECDF_H),
+        _ax(ecdf_l + S.ECDF_W + S.ECDF_HGAP, S.B_FLAT + S.ECDF_H + S.ECDF_VGAP, S.ECDF_W, S.ECDF_H),
+        _ax(ecdf_l,                   S.B_FLAT,                            S.ECDF_W, S.ECDF_H),
+        _ax(ecdf_l + S.ECDF_W + S.ECDF_HGAP, S.B_FLAT,                    S.ECDF_W, S.ECDF_H),
     ]
 
-    draw_combined_barplot(ax_bar, all_data)
-    ax_bar.text(-0.06, 1.03, "A", transform=ax_bar.transAxes,
-                fontsize=12, fontweight="bold", va="bottom")
+    cond_handles, dot_handles = draw_combined_barplot(ax_bar, all_data)
+    ax_bar.text(-0.10, 1.04, "A", transform=ax_bar.transAxes,
+                fontsize=10, fontweight="bold", va="bottom")
+
+    lgd_x   = (S.L_MAR + bar_w + S.BAR_LGD) / fig_w
+    lgd_top = (S.B_FLAT + S.CONTENT_H) / fig_h
+    lgd_bot = S.B_FLAT / fig_h
+    fig.legend(handles=cond_handles, fontsize=7, framealpha=0.9,
+               title="Starvation / odorant", title_fontsize=7,
+               bbox_to_anchor=(lgd_x, lgd_top), loc="upper left",
+               bbox_transform=fig.transFigure, borderaxespad=0)
+    fig.legend(handles=dot_handles, fontsize=7, framealpha=0.9,
+               bbox_to_anchor=(lgd_x, lgd_bot), loc="lower left",
+               bbox_transform=fig.transFigure, borderaxespad=0)
 
     for i, (cdata, ax) in enumerate(zip(all_data, ax_ecdf)):
-        draw_ecdf(ax, cdata["animal_df"], title=cdata["cfg"]["label"])
-        ax.text(-0.15, 1.06, chr(ord("B") + i), transform=ax.transAxes,
-                fontsize=10, fontweight="bold", va="bottom")
+        S.draw_ecdf(ax, cdata["animal_df"], GENO_ORDER, GENO_COLORS,
+                    title=cdata["cfg"]["label"], geno_col="Genotype")
+        ax.text(-0.18, 1.08, chr(ord("B") + i), transform=ax.transAxes,
+                fontsize=8, fontweight="bold", va="bottom")
 
     for ext in ("pdf", "png"):
         path = os.path.join(args.out_dir, f"sos_condition_plots.{ext}")
