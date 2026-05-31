@@ -58,13 +58,20 @@ SHARED_Y_MIN = -285.0
 SHARED_Y_MAX = -97.0
 
 # ── Helper: AP-axis profile for one or more mesh names ───────────────────────
+GAP_DOTTED_UM = 40.0   # runs of NaN wider than this are shown as dotted
+
 def ap_profile(mesh_names, bin_um=BIN_UM, dedup=False):
     """
     Return (y_centers, d_min, is_interpolated) arrays for the given meshes.
 
     y_centers      : bin centre positions in µm
     d_min          : minimum distance to intestine within each bin (µm)
-    is_interpolated: True for bins filled by linear interpolation (no raw data)
+    is_interpolated: True only for bins that span a LARGE structural gap in the
+                     neuron mesh (> GAP_DOTTED_UM).  Small NaN bins arising
+                     from sparse face-centroid spacing (~20 µm inter-point
+                     interval vs 10 µm bins) are filled silently and shown
+                     solid — marking every one of them as dotted produces a
+                     faint striped artifact rather than a readable profile.
     """
     sub = nn[nn['mesh'].isin(mesh_names)].copy()
     if dedup:
@@ -75,7 +82,7 @@ def ap_profile(mesh_names, bin_um=BIN_UM, dedup=False):
 
     y_min = np.floor(y_all.min() / bin_um) * bin_um
     y_max = np.ceil(y_all.max()  / bin_um) * bin_um
-    edges = np.arange(y_min, y_max + bin_um, bin_um)
+    edges   = np.arange(y_min, y_max + bin_um, bin_um)
     centers = (edges[:-1] + edges[1:]) / 2
 
     d_min = np.full(len(centers), np.nan)
@@ -84,14 +91,30 @@ def ap_profile(mesh_names, bin_um=BIN_UM, dedup=False):
         if mask.any():
             d_min[i] = d_all[mask].min()
 
-    is_interp = np.isnan(d_min)
+    # Identify large structural gaps (runs of NaN > GAP_DOTTED_UM wide)
+    nan_mask   = np.isnan(d_min)
+    is_interp  = np.zeros(len(centers), dtype=bool)
+    in_run     = False
+    run_start  = 0
+    for i, n in enumerate(nan_mask):
+        if n and not in_run:
+            run_start = i; in_run = True
+        elif not n and in_run:
+            run_width_um = (i - run_start) * bin_um
+            if run_width_um > GAP_DOTTED_UM:
+                is_interp[run_start:i] = True
+            in_run = False
+    if in_run:
+        run_width_um = (len(nan_mask) - run_start) * bin_um
+        if run_width_um > GAP_DOTTED_UM:
+            is_interp[run_start:] = True
 
-    # Linear interpolation across NaN gaps (but don't extrapolate)
-    valid = ~np.isnan(d_min)
+    # Linear interpolation across all NaN gaps (don't extrapolate)
+    valid = ~nan_mask
     if valid.sum() >= 2:
         f = interp1d(centers[valid], d_min[valid],
                      kind='linear', bounds_error=False, fill_value=np.nan)
-        d_min[is_interp] = f(centers[is_interp])
+        d_min[nan_mask] = f(centers[nan_mask])
 
     return centers, d_min, is_interp
 

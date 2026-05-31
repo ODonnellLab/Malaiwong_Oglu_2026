@@ -332,13 +332,47 @@ neu_fill.to_csv(OUT / 'blend_neurite_nn_distances.csv', index=False)
 print(f"Saved blend_neurite_nn_distances.csv  ({len(neu_fill)} rows)")
 
 # ── Per-class metrics ─────────────────────────────────────────────────────────
+# Contact length: sum of AP-axis profile bins where d_min < threshold.
+# This is more accurate than max(Y_close) - min(Y_close) because it only
+# counts regions where the neuron is ACTUALLY within threshold — not bridging
+# across mid-body gaps where it has drifted away.  Gaps in the face-centroid
+# path are filled by linear interpolation (same logic as blend_ap_axis_figure.py)
+# so that real neurite path coverage is not underestimated.
+# Head neurons outside the intestine Y range use 3D distance to the anterior
+# intestine tip; that distance appears in their bins and is correctly excluded
+# by the threshold (they are typically > 30 µm from the intestine).
+
+from scipy.interpolate import interp1d as _interp1d
+
+BIN_UM_CONTACT  = 10.0     # AP-axis bin width for contact length (µm)
+GAP_FILL_MAX_UM = 80.0     # max gap to interpolate across
+
+def _contact_length(grp, thresh_um=THRESH_UM, bin_um=BIN_UM_CONTACT):
+    y_um = grp['y_um'].values
+    d_um = grp['d_nn_um'].values
+    if len(y_um) < 2:
+        return 0.0
+    y_min = np.floor(y_um.min() / bin_um) * bin_um
+    y_max = np.ceil(y_um.max()  / bin_um) * bin_um
+    edges   = np.arange(y_min, y_max + bin_um, bin_um)
+    centers = (edges[:-1] + edges[1:]) / 2
+    d_min   = np.full(len(centers), np.nan)
+    for i, (lo, hi) in enumerate(zip(edges[:-1], edges[1:])):
+        mask = (y_um >= lo) & (y_um < hi)
+        if mask.any():
+            d_min[i] = d_um[mask].min()
+    valid = ~np.isnan(d_min)
+    if valid.sum() >= 2:
+        f = _interp1d(centers[valid], d_min[valid], kind='linear',
+                      bounds_error=False, fill_value=np.nan)
+        nan_mask = np.isnan(d_min)
+        d_min[nan_mask] = f(centers[nan_mask])
+    return float(np.nansum(d_min < thresh_um) * bin_um)
+
 rows = []
 for cls, grp in neu_fill.groupby('cls'):
     d    = grp['d_nn_um'].values
     d_bl = grp['d_nn_bl'].values
-    close = grp[grp['d_nn_bl'] <= THRESH_UM / BLEND_TO_UM]
-    contact_span = ((close['y'].max() - close['y'].min()) * BLEND_TO_UM
-                    if len(close) else 0.0)
     rows.append({
         'neuron_class':       cls,
         'coverage':           COVERAGE.get(cls, ''),
@@ -347,7 +381,7 @@ for cls, grp in neu_fill.groupby('cls'):
         'd_median_um':        float(np.median(d)),
         'd_p90_um':           float(np.percentile(d, 90)),
         'frac_within_thresh': float(np.mean(d_bl <= THRESH_UM / BLEND_TO_UM)),
-        'contact_span_um':    float(contact_span),
+        'contact_span_um':    _contact_length(grp),
         'n_verts':            len(d),
     })
 
