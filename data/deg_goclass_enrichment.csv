@@ -1,0 +1,197 @@
+Cell,GO_class,Dataset,k,K,enrichment,p,q_BH,mean_enr
+NSM,Glycoside metab/transport,Adult,2,3,1.81,0.3057,0.722,1.23
+PDE,Glycoside metab/transport,Adult,0,3,0.0,1.0,1.0,0.36
+CEP,Glycoside metab/transport,Adult,1,3,0.84,0.7797,0.8788,0.42
+ADE,Glycoside metab/transport,Adult,2,3,2.05,0.2474,0.722,1.92
+AVM,Glycoside metab/transport,Adult,1,3,1.0,0.7055,0.8788,0.5
+RIC,Glycoside metab/transport,Adult,1,3,0.89,0.7535,0.8788,0.44
+RIM,Glycoside metab/transport,Adult,1,3,0.94,0.731,0.8788,0.47
+VC_4_5,Glycoside metab/transport,Adult,2,3,1.92,0.2778,0.722,1.96
+HSN,Glycoside metab/transport,Adult,3,3,2.51,0.0633,0.4431,1.59
+ADF,Glycoside metab/transport,Adult,1,3,0.77,0.816,0.8788,1.01
+RIR,Glycoside metab/transport,Adult,3,3,2.88,0.0417,0.4431,1.44
+ASI,Glycoside metab/transport,Adult,2,3,1.64,0.361,0.722,1.16
+RIH,Glycoside metab/transport,Adult,1,3,1.11,0.6588,0.8788,0.56
+CAN,Glycoside metab/transport,Adult,2,3,1.71,0.3373,0.722,1.84
+NSM,Cell adhesion / junction,Adult,2,3,1.81,0.3057,0.952,1.54
+PDE,Cell adhesion / junction,Adult,1,3,1.15,0.6436,0.952,0.94
+CEP,Cell adhesion / junction,Adult,1,3,0.84,0.7797,0.952,0.77
+ADE,Cell adhesion / junction,Adult,1,3,1.03,0.6917,0.952,0.96
+AVM,Cell adhesion / junction,Adult,0,3,0.0,1.0,1.0,0.4
+RIC,Cell adhesion / junction,Adult,0,3,0.0,1.0,1.0,0.38
+RIM,Cell adhesion / junction,Adult,1,3,0.94,0.731,0.952,0.47
+VC_4_5,Cell adhesion / junction,Adult,2,3,1.92,0.2778,0.952,1.96
+HSN,Cell adhesion / junction,Adult,1,3,0.84,0.7824,0.952,0.76
+ADF,Cell adhesion / junction,Adult,1,3,0.77,0.816,0.952,0.7
+RIR,Cell adhesion / junction,Adult,1,3,0.96,0.7214,0.952,1.36
+ASI,Cell adhesion / junction,Adult,1,3,0.82,0.7907,0.952,0.41
+RIH,Cell adhesion / junction,Adult,1,3,1.11,0.6588,0.952,1.02
+CAN,Cell adhesion / junction,Adult,1,3,0.86,0.7728,0.952,0.76
+NSM,Lipid / sterol metabolism,Adult,1,6,0.45,0.9359,1.0,0.22
+PDE,Lipid / sterol metabolism,Adult,1,6,0.57,0.873,1.0,0.28
+CEP,Lipid / sterol metabolism,Adult,1,6,0.42,0.9515,1.0,0.21
+ADE,Lipid / sterol metabolism,Adult,1,6,0.51,0.905,1.0,0.26
+AVM,Lipid / sterol metabolism,Adult,1,6,0.5,0.9133,1.0,0.25
+RIC,Lipid / sterol metabolism,Adult,0,6,0.0,1.0,1.0,0.0
+RIM,Lipid / sterol metabolism,Adult,2,6,0.94,0.6892,1.0,0.47
+VC_4_5,Lipid / sterol metabolism,Adult,1,6,0.48,0.9226,1.0,0.24
+HSN,Lipid / sterol metabolism,Adult,2,6,0.84,0.7644,1.0,0.58
+ADF,Lipid / sterol metabolism,Adult,1,6,0.39,0.9662,1.0,0.2
+RIR,Lipid / sterol metabolism,Adult,1,6,0.48,0.9224,1.0,0.24
+ASI,Lipid / sterol metabolism,Adult,2,6,0.82,0.7764,1.0,0.58
+RIH,Lipid / sterol metabolism,Adult,0,6,0.0,1.0,1.0,0.0
+CAN,Lipid / sterol metabolism,Adult,2,6,0.86,0.7505,1.0,0.6
+NSM,Transcription / RNA,Adult,3,5,1.63,0.2627,0.5107,1.2
+PDE,Transcription / RNA,Adult,2,5,1.37,0.4531,0.5532,1.12
+CEP,Transcription / RNA,Adult,5,5,2.53,0.0097,0.1358,2.12
+ADE,Transcription / RNA,Adult,4,5,2.47,0.041,0.2376,1.77
+AVM,Transcription / RNA,Adult,1,5,0.6,0.8697,0.8697,0.54
+RIC,Transcription / RNA,Adult,4,5,2.14,0.0679,0.2376,1.52
+RIM,Transcription / RNA,Adult,2,5,1.13,0.5801,0.6247,0.8
+VC_4_5,Transcription / RNA,Adult,4,5,2.3,0.0524,0.2376,2.05
+HSN,Transcription / RNA,Adult,3,5,1.51,0.3148,0.5107,1.16
+ADF,Transcription / RNA,Adult,3,5,1.39,0.3727,0.5218,0.88
+RIR,Transcription / RNA,Adult,3,5,1.73,0.2303,0.5107,1.4
+ASI,Transcription / RNA,Adult,3,5,1.48,0.3283,0.5107,1.15
+RIH,Transcription / RNA,Adult,2,5,1.33,0.4742,0.5532,0.94
+CAN,Transcription / RNA,Adult,3,5,1.54,0.2999,0.5107,1.16
+NSM,Signaling / GTPase,Adult,3,3,2.72,0.0496,0.0853,2.32
+PDE,Signaling / GTPase,Adult,3,3,3.44,0.0246,0.0853,2.82
+CEP,Signaling / GTPase,Adult,3,3,2.53,0.0621,0.0853,2.34
+ADE,Signaling / GTPase,Adult,3,3,3.08,0.0341,0.0853,2.88
+AVM,Signaling / GTPase,Adult,3,3,2.99,0.0375,0.0853,2.69
+RIC,Signaling / GTPase,Adult,3,3,2.68,0.0519,0.0853,1.72
+RIM,Signaling / GTPase,Adult,3,3,2.82,0.0445,0.0853,2.18
+VC_4_5,Signaling / GTPase,Adult,2,3,1.92,0.2778,0.2778,1.96
+HSN,Signaling / GTPase,Adult,3,3,2.51,0.0633,0.0853,2.26
+ADF,Signaling / GTPase,Adult,3,3,2.32,0.0802,0.0936,2.09
+RIR,Signaling / GTPase,Adult,3,3,2.88,0.0417,0.0853,2.33
+ASI,Signaling / GTPase,Adult,3,3,2.46,0.067,0.0853,2.26
+RIH,Signaling / GTPase,Adult,2,3,2.21,0.2175,0.2342,2.04
+CAN,Signaling / GTPase,Adult,3,3,2.57,0.0592,0.0853,2.26
+NSM,Neuropeptide / receptor,Adult,1,2,1.36,0.5998,1.0,0.68
+PDE,Neuropeptide / receptor,Adult,1,2,1.72,0.4973,1.0,0.86
+CEP,Neuropeptide / receptor,Adult,2,2,2.53,0.1568,1.0,1.8
+ADE,Neuropeptide / receptor,Adult,1,2,1.54,0.5436,1.0,0.77
+AVM,Neuropeptide / receptor,Adult,1,2,1.49,0.5574,1.0,0.74
+RIC,Neuropeptide / receptor,Adult,1,2,1.34,0.6069,1.0,1.23
+RIM,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.58
+VC_4_5,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.0
+HSN,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.0
+ADF,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.47
+RIR,Neuropeptide / receptor,Adult,1,2,1.44,0.5734,1.0,0.72
+ASI,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.52
+RIH,Neuropeptide / receptor,Adult,0,2,0.0,1.0,1.0,0.0
+CAN,Neuropeptide / receptor,Adult,1,2,1.28,0.6276,1.0,1.13
+NSM,Uncharacterized,Adult,8,24,0.91,0.7065,0.9954,0.74
+PDE,Uncharacterized,Adult,4,24,0.57,0.9487,0.9954,0.38
+CEP,Uncharacterized,Adult,6,24,0.63,0.9567,0.9954,0.58
+ADE,Uncharacterized,Adult,4,24,0.51,0.9755,0.9954,0.42
+AVM,Uncharacterized,Adult,3,24,0.37,0.9953,0.9954,0.44
+RIC,Uncharacterized,Adult,7,24,0.78,0.8502,0.9954,0.58
+RIM,Uncharacterized,Adult,4,24,0.47,0.9882,0.9954,0.43
+VC_4_5,Uncharacterized,Adult,7,24,0.84,0.7811,0.9954,0.61
+HSN,Uncharacterized,Adult,7,24,0.73,0.9016,0.9954,0.62
+ADF,Uncharacterized,Adult,6,24,0.58,0.9801,0.9954,0.44
+RIR,Uncharacterized,Adult,5,24,0.6,0.9551,0.9954,0.41
+ASI,Uncharacterized,Adult,6,24,0.62,0.9651,0.9954,0.56
+RIH,Uncharacterized,Adult,4,24,0.55,0.9588,0.9954,0.45
+CAN,Uncharacterized,Adult,4,24,0.43,0.9954,0.9954,0.54
+NSM,Glycoside metab/transport,L4,1,3,0.64,0.8914,1.0,1.23
+PDE,Glycoside metab/transport,L4,1,3,0.73,0.8392,1.0,0.36
+CEP,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,0.42
+ADE,Glycoside metab/transport,L4,2,3,1.78,0.3161,1.0,1.92
+AVM,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,0.5
+RIC,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,0.44
+RIM,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,0.47
+VC_4_5,Glycoside metab/transport,L4,2,3,2.0,0.2589,1.0,1.96
+HSN,Glycoside metab/transport,L4,1,3,0.67,0.8752,1.0,1.59
+ADF,Glycoside metab/transport,L4,2,3,1.25,0.551,1.0,1.01
+RIR,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,1.44
+ASI,Glycoside metab/transport,L4,1,3,0.68,0.865,1.0,1.16
+RIH,Glycoside metab/transport,L4,0,3,0.0,1.0,1.0,0.56
+CAN,Glycoside metab/transport,L4,3,3,1.96,0.1324,1.0,1.84
+NSM,Cell adhesion / junction,L4,2,3,1.28,0.5342,1.0,1.54
+PDE,Cell adhesion / junction,L4,1,3,0.73,0.8392,1.0,0.94
+CEP,Cell adhesion / junction,L4,1,3,0.71,0.8494,1.0,0.77
+ADE,Cell adhesion / junction,L4,1,3,0.89,0.7557,1.0,0.96
+AVM,Cell adhesion / junction,L4,1,3,0.8,0.8029,1.0,0.4
+RIC,Cell adhesion / junction,L4,1,3,0.75,0.8261,1.0,0.38
+RIM,Cell adhesion / junction,L4,0,3,0.0,1.0,1.0,0.47
+VC_4_5,Cell adhesion / junction,L4,2,3,2.0,0.2589,1.0,1.96
+HSN,Cell adhesion / junction,L4,1,3,0.67,0.8752,1.0,0.76
+ADF,Cell adhesion / junction,L4,1,3,0.62,0.8988,1.0,0.7
+RIR,Cell adhesion / junction,L4,2,3,1.77,0.3194,1.0,1.36
+ASI,Cell adhesion / junction,L4,0,3,0.0,1.0,1.0,0.41
+RIH,Cell adhesion / junction,L4,1,3,0.93,0.7346,1.0,1.02
+CAN,Cell adhesion / junction,L4,1,3,0.65,0.8822,1.0,0.76
+NSM,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.22
+PDE,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.28
+CEP,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.21
+ADE,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.26
+AVM,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.25
+RIC,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.0
+RIM,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.47
+VC_4_5,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.24
+HSN,Lipid / sterol metabolism,L4,1,6,0.33,0.9844,1.0,0.58
+ADF,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.2
+RIR,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.24
+ASI,Lipid / sterol metabolism,L4,1,6,0.34,0.9818,1.0,0.58
+RIH,Lipid / sterol metabolism,L4,0,6,0.0,1.0,1.0,0.0
+CAN,Lipid / sterol metabolism,L4,1,6,0.33,0.9861,1.0,0.6
+NSM,Transcription / RNA,L4,2,5,0.77,0.8397,0.978,1.2
+PDE,Transcription / RNA,L4,2,5,0.88,0.7529,0.978,1.12
+CEP,Transcription / RNA,L4,4,5,1.71,0.1499,0.978,2.12
+ADE,Transcription / RNA,L4,2,5,1.07,0.6182,0.978,1.77
+AVM,Transcription / RNA,L4,1,5,0.48,0.9333,0.978,0.54
+RIC,Transcription / RNA,L4,2,5,0.91,0.7313,0.978,1.52
+RIM,Transcription / RNA,L4,1,5,0.46,0.9411,0.978,0.8
+VC_4_5,Transcription / RNA,L4,3,5,1.8,0.2094,0.978,2.05
+HSN,Transcription / RNA,L4,2,5,0.8,0.8128,0.978,1.16
+ADF,Transcription / RNA,L4,1,5,0.37,0.978,0.978,0.88
+RIR,Transcription / RNA,L4,2,5,1.06,0.6225,0.978,1.4
+ASI,Transcription / RNA,L4,2,5,0.82,0.7958,0.978,1.15
+RIH,Transcription / RNA,L4,1,5,0.56,0.8904,0.978,0.94
+CAN,Transcription / RNA,L4,2,5,0.78,0.8245,0.978,1.16
+NSM,Signaling / GTPase,L4,3,3,1.91,0.1429,0.2369,2.32
+PDE,Signaling / GTPase,L4,3,3,2.19,0.0949,0.2369,2.82
+CEP,Signaling / GTPase,L4,3,3,2.14,0.1024,0.2369,2.34
+ADE,Signaling / GTPase,L4,3,3,2.67,0.0526,0.2369,2.88
+AVM,Signaling / GTPase,L4,3,3,2.39,0.073,0.2369,2.69
+RIC,Signaling / GTPase,L4,1,3,0.75,0.8261,0.8261,1.72
+RIM,Signaling / GTPase,L4,2,3,1.54,0.3993,0.43,2.18
+VC_4_5,Signaling / GTPase,L4,2,3,2.0,0.2589,0.3625,1.96
+HSN,Signaling / GTPase,L4,3,3,2.0,0.1251,0.2369,2.26
+ADF,Signaling / GTPase,L4,3,3,1.87,0.1523,0.2369,2.09
+RIR,Signaling / GTPase,L4,2,3,1.77,0.3194,0.3726,2.33
+ASI,Signaling / GTPase,L4,3,3,2.05,0.1154,0.2369,2.26
+RIH,Signaling / GTPase,L4,2,3,1.87,0.2918,0.3714,2.04
+CAN,Signaling / GTPase,L4,3,3,1.96,0.1324,0.2369,2.26
+NSM,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.68
+PDE,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.86
+CEP,Neuropeptide / receptor,L4,1,2,1.07,0.7169,1.0,1.8
+ADE,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.77
+AVM,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.74
+RIC,Neuropeptide / receptor,L4,1,2,1.13,0.6884,1.0,1.23
+RIM,Neuropeptide / receptor,L4,1,2,1.16,0.6779,1.0,0.58
+VC_4_5,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.0
+HSN,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.0
+ADF,Neuropeptide / receptor,L4,1,2,0.94,0.7829,1.0,0.47
+RIR,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.72
+ASI,Neuropeptide / receptor,L4,1,2,1.03,0.7368,1.0,0.52
+RIH,Neuropeptide / receptor,L4,0,2,0.0,1.0,1.0,0.0
+CAN,Neuropeptide / receptor,L4,1,2,0.98,0.7597,1.0,1.13
+NSM,Uncharacterized,L4,7,24,0.56,0.9938,1.0,0.74
+PDE,Uncharacterized,L4,2,24,0.18,1.0,1.0,0.38
+CEP,Uncharacterized,L4,6,24,0.53,0.992,1.0,0.58
+ADE,Uncharacterized,L4,3,24,0.33,0.9986,1.0,0.42
+AVM,Uncharacterized,L4,5,24,0.5,0.9915,1.0,0.44
+RIC,Uncharacterized,L4,4,24,0.38,0.999,1.0,0.58
+RIM,Uncharacterized,L4,4,24,0.39,0.9987,1.0,0.43
+VC_4_5,Uncharacterized,L4,3,24,0.38,0.9951,1.0,0.61
+HSN,Uncharacterized,L4,6,24,0.5,0.9967,1.0,0.62
+ADF,Uncharacterized,L4,4,24,0.31,1.0,1.0,0.44
+RIR,Uncharacterized,L4,2,24,0.22,0.9998,1.0,0.41
+ASI,Uncharacterized,L4,6,24,0.51,0.9952,1.0,0.56
+RIH,Uncharacterized,L4,3,24,0.35,0.9976,1.0,0.45
+CAN,Uncharacterized,L4,8,24,0.65,0.9744,1.0,0.54

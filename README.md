@@ -242,6 +242,77 @@ inter_spacing: 0.42   # center-to-center between groups (data units)
 Groups reference Strain_IDs from the CSV. Within a group bars are drawn at `intra_spacing`
 apart; a break in the x-axis line marks the boundary between groups.
 
+### Adding new data and re-running the combined LMM
+
+`sos_analysis.py` pools all per-genotype SOS data into a single combined log-normal
+LMM to produce the speed–response correlation figure. It reads from the same raw CSV
+directory used by the per-genotype figure scripts.
+
+**Step 1 — Drop the new CSV into the raw data directory**
+
+The raw figure CSVs are not currently included in the repository (data collection is
+ongoing); they will be added at submission. Point `--data-dir` at wherever your local
+copy lives. The script scans all `*.csv` files in that directory and filters to rows
+where `Condition == "control"`, `Bacteria == "OP50"`, `Odor == "33% octanol"`. Any
+file following the standard ODLabPlotTools column format will be picked up automatically.
+If you are adding a file that was already partially covered by another CSV (e.g. an
+updated panel), the script deduplicates on `(Genotype, Date, Response.time)` to
+prevent double-counting.
+
+**Step 2 — Check genotype name harmonization**
+
+If the new file introduces a genotype name not seen before, add it to `GENOTYPE_MAP`
+in `sos_analysis.py` before running. Unrecognised names pass through unchanged and
+will not match the speed data, appearing in the summary but missing a speed fold-change.
+To audit names before running:
+
+```bash
+python3 -c "
+import pandas as pd, glob
+raw = pd.concat([pd.read_csv(f) for f in glob.glob('/path/to/raw_figure_data/*.csv')])
+ctrl = raw[(raw.Condition=='control') & (raw.Bacteria=='OP50') & (raw.Odor=='33% octanol')]
+print(sorted(ctrl.Genotype.unique()))
+"
+```
+
+Rescue lines and cell-type-specific expression lines should be listed in `DROP_GENOTYPES`
+so they are excluded from the combined analysis (they are handled in the per-genotype
+figures separately).
+
+**Step 3 — Re-run with `--refresh`**
+
+```bash
+python sos_analysis.py \
+    --data-dir /path/to/raw_figure_data \
+    --out-dir  data/ \
+    --refresh
+```
+
+`--refresh` forces a full re-scan of all CSVs and re-runs the LMM (equivalent to
+`--refit`). Without it the script uses the cached parquet files in `data/` and skips
+loading. Use `--refit` alone to re-run the LMM without re-scanning the data.
+
+**Statistical model**
+
+```
+log(response_time) ~ genotype + (1 | date) + (1 | recording_id)
+```
+
+Fit in R (lme4, REML, bobyqa optimizer). If the model is singular, `recording_id`
+is dropped and the model is re-fit with `(1 | date)` only. Contrasts vs N2 are
+estimated via emmeans with Benjamini–Hochberg correction. See
+`methods_sos_conditions.txt` for the full methods text.
+
+**Outputs** (written to `--out-dir`):
+
+| File | Description |
+|------|-------------|
+| `sos_animal_data.parquet` | Per-animal cache (re-used on subsequent runs) |
+| `sos_recording_data.parquet` | Per-recording (date) summary cache |
+| `sos_stats.csv` | LMM time ratios vs N2 |
+| `speed_sos_summary.csv` | Combined speed + RT summary per genotype |
+| `speed_sos_correlation.pdf/.png` | Correlation figure |
+
 ### Modifying the shared style
 
 Edit `sos_style.py` to change any visual property across all SOS figures at once.

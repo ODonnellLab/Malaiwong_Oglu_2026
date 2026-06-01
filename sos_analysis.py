@@ -819,7 +819,7 @@ def main():
     speed_s = speed_stat[speed_stat["metric"] == "speed"].set_index("genotype")
     sos_s   = stat_df.set_index("genotype")
     rec_g   = recording_df.groupby("genotype").agg(
-        n_recordings=("recording_id", "count"),
+        n_recordings=("date", "nunique"),
         median_rt=("median_rt", "median")).reset_index()
 
     rows = []
