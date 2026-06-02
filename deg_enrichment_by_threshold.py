@@ -121,9 +121,9 @@ print(f'  Adult DEGs matched: {g_full.index.isin(g_adult_deg_idx).sum()} / {len(
 CAT1_NEURONS = ['ADE', 'ADF', 'AVM', 'CAN', 'CEP', 'HSN', 'NSM', 'PDE',
                 'RIC', 'RIH', 'RIM', 'RIR', 'ASI', 'VC_4_5']
 
-TPM_MINS  = [1, 10, 25]
-PCT_THRS  = [0.01, 0.05, 0.10, 0.20, 0.33, 0.50]
-XLABELS   = ['1%', '5%', '10%', '20%', '33%', '50%']
+TPM_MINS  = [1]
+PCT_THRS  = [0.01, 0.05, 0.10, 0.20, 0.40, 0.80]
+XLABELS   = ['1%', '5%', '10%', '20%', '40%', '80%']
 
 
 def compute_enrichment(full, deg, cell_cols, neu, tpm_min, pct_thrs):
@@ -156,98 +156,99 @@ def compute_enrichment(full, deg, cell_cols, neu, tpm_min, pct_thrs):
     return rows
 
 
-# ── Figure: 3 rows (tpm_min) × 2 columns (dataset) ───────────────────────────
+# ── Figure ────────────────────────────────────────────────────────────────────
 DATASETS = [
-    ('Taylor L4',    t_l4_full,    t_l4_deg,    ccols_l),
-    ('Taylor adult', t_adult_full, t_adult_deg, ccols_a),
-    ('Ghaddar (adult)', g_full,  g_adult_deg, gcols),
+    ('Taylor L4',       t_l4_full,    t_l4_deg,    ccols_l, CAT1_NEURONS),
+    ('Taylor adult',    t_adult_full, t_adult_deg, ccols_a, CAT1_NEURONS),
+    ('Ghaddar (adult)', g_full,       g_adult_deg, gcols,   CAT1_NEURONS),
+    # 4th panel: Taylor L4 vs ALL neurons (not just cat-1+)
+    ('Taylor L4 — all neurons', t_l4_full, t_l4_deg, ccols_l, None),
 ]
 
-n_rows = len(TPM_MINS)
-n_cols = len(DATASETS)
-fig, axes = plt.subplots(n_rows, n_cols,
-                          figsize=(5.8 * n_cols, 3.8 * n_rows),
-                          sharey=False)
-
 x = np.arange(len(PCT_THRS))
-X_LABEL_OFFSET = 0.18   # data units right of last x tick
+X_LABEL_OFFSET = 0.18
+tpm_min = TPM_MINS[0]
 
-for row_i, tpm_min in enumerate(TPM_MINS):
-    for col_i, (ds_name, full, deg, cell_cols) in enumerate(DATASETS):
-        ax = axes[row_i, col_i]
-        available = [c for c in CAT1_NEURONS if c in cell_cols]
 
-        # ── compute all enrichments for this panel ───────────────────────────
-        panel_res = {}   # neu -> list of result dicts
-        for neu in available:
-            res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, PCT_THRS)
-            if res is not None:
-                panel_res[neu] = res
+def draw_panel(ax, ds_name, full, deg, cell_cols, neuron_list):
+    """Draw one enrichment panel. neuron_list=None means all cell types."""
+    available = (neuron_list if neuron_list is not None
+                 else [c for c in cell_cols if c != 'gene_name'])
+    available = [n for n in available if n in cell_cols]
+    all_neurons = (neuron_list is None)   # all-neurons panel → thinner lines
 
-        # ── BH correction across all neurons × pct_max in this panel ────────
-        panel_keys  = [(neu, xi) for neu in panel_res for xi in range(len(PCT_THRS))]
-        panel_pvals = [panel_res[neu][xi]['p'] for neu, xi in panel_keys]
-        panel_qvals = bh_correct(panel_pvals)
-        sig_map     = {k: q < 0.05 for k, q in zip(panel_keys, panel_qvals)}
+    # Compute enrichments and apply BH per neuron (n=6 pct_max thresholds)
+    panel_res, sig_map = {}, {}
+    for neu in available:
+        res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, PCT_THRS)
+        if res is None:
+            continue
+        panel_res[neu] = res
+        qvals = bh_correct([r['p'] for r in res])
+        for xi, q in enumerate(qvals):
+            sig_map[(neu, xi)] = bool(q < 0.05)
 
-        # ── plot lines and markers ───────────────────────────────────────────
-        label_positions = []
-        for neu, res in panel_res.items():
-            enr    = [r['enr'] for r in res]
-            is_can = (neu == 'CAN')
+    # Plot lines and markers
+    label_positions = []
+    for neu, res in panel_res.items():
+        enr    = [r['enr'] for r in res]
+        is_can = (neu == 'CAN')
+        color  = '#1a5fa8' if is_can else '#aaaaaa'
+        lw     = 2.0 if is_can else (0.4 if all_neurons else 0.8)
+        alpha  = 1.0 if is_can else (0.25 if all_neurons else 0.5)
 
-            color = '#1a5fa8' if is_can else '#aaaaaa'
-            lw    = 2.0       if is_can else 0.8
-            zo    = 5         if is_can else 2
-            alpha = 1.0       if is_can else 0.5
+        ax.plot(x, enr, color=color, lw=lw, zorder=5 if is_can else 2, alpha=alpha)
+        for xi, e in enumerate(enr):
+            if sig_map.get((neu, xi), False):
+                ax.scatter(xi, e, color=color,
+                           s=40 if is_can else 15,
+                           alpha=1.0 if is_can else 0.6, zorder=6)
 
-            ax.plot(x, enr, color=color, lw=lw, zorder=zo, alpha=alpha)
-            for xi, e in enumerate(enr):
-                if sig_map.get((neu, xi), False):
-                    sz = 40 if is_can else 20
-                    ax.scatter(xi, e, color=color, s=sz,
-                               alpha=1.0 if is_can else 0.7, zorder=6)
+        has_sig = any(sig_map.get((neu, xi), False) for xi in range(len(PCT_THRS)))
+        if is_can or has_sig:
+            label_positions.append((enr[-1], neu, color, is_can))
 
-            has_sig = any(sig_map.get((neu, xi), False) for xi in range(len(PCT_THRS)))
-            if is_can or has_sig:
-                label_positions.append((enr[-1], neu, color, is_can))
+    # Place labels, nudging overlapping ones apart
+    label_positions.sort(key=lambda t: t[0])
+    min_gap, placed_y = 0.10, []
+    for y_raw, neu, color, is_can in label_positions:
+        y = y_raw
+        for py in reversed(placed_y):
+            if y - py < min_gap:
+                y = py + min_gap
+        placed_y.append(y)
+        ax.text(x[-1] + X_LABEL_OFFSET, y, neu,
+                fontsize=6.5 if is_can else 6,
+                color='#1a5fa8' if is_can else '#888888',
+                fontweight='bold' if is_can else 'normal',
+                va='center', clip_on=False, zorder=7)
 
-        # ── second pass: place labels, spreading overlapping ones ────────────
-        # Sort by y, then nudge apart any that are closer than min_gap
-        label_positions.sort(key=lambda t: t[0])
-        min_gap = 0.10
-        placed_y = []
-        for y_raw, neu, color, is_can in label_positions:
-            y = y_raw
-            for py in reversed(placed_y):
-                if y - py < min_gap:
-                    y = py + min_gap
-            placed_y.append(y)
-            ax.text(x[-1] + X_LABEL_OFFSET, y, neu,
-                    fontsize=6.5 if is_can else 6,
-                    color='#1a5fa8' if is_can else '#888888',
-                    fontweight='bold' if is_can else 'normal',
-                    va='center', clip_on=False, zorder=7)
+    ax.axhline(1, color='k', lw=0.7, ls='--', alpha=0.35)
+    ax.set_xticks(x)
+    ax.set_xticklabels(XLABELS, fontsize=8)
+    ax.set_xlim(x[0] - 0.3, x[-1] + 1.4)
+    ax.set_xlabel('Neuron / gene-max threshold', fontsize=8)
+    ax.set_ylabel('Enrichment', fontsize=8)
+    ax.set_title(ds_name, fontsize=10)
+    ax.spines[['top', 'right']].set_visible(False)
 
-        ax.axhline(1, color='k', lw=0.7, ls='--', alpha=0.35)
-        ax.set_xticks(x)
-        ax.set_xticklabels(XLABELS, fontsize=8)
-        ax.set_xlim(x[0] - 0.3, x[-1] + 1.4)
-        ax.set_xlabel('Neuron / gene-max threshold', fontsize=8)
-        ax.set_ylabel('Enrichment', fontsize=8)
-        ax.set_title(f'{ds_name}  |  NEU ≥ {tpm_min} TPM', fontsize=9)
-        ax.spines[['top', 'right']].set_visible(False)
+    res_can = panel_res.get('CAN')
+    if res_can:
+        ax.text(0.02, 0.97,
+                f'n={res_can[0]["n"]} DEGs / N={res_can[0]["N"]} genes',
+                transform=ax.transAxes, fontsize=7,
+                ha='left', va='top', color='#666666')
 
-        res_can = compute_enrichment(full, deg, cell_cols, 'CAN', tpm_min, PCT_THRS)
-        if res_can:
-            ax.text(0.02, 0.97,
-                    f'n={res_can[0]["n"]} DEGs / N={res_can[0]["N"]} genes',
-                    transform=ax.transAxes, fontsize=7,
-                    ha='left', va='top', color='#666666')
 
-fig.suptitle('cest-2.1 DEG enrichment — all cat-1+ neurons\n'
-             'CAN = blue (filled dot = q<0.05, BH within panel); grey = other cat-1+ neurons',
-             fontsize=9, y=1.005)
+n_cols = len(DATASETS)
+fig, axes = plt.subplots(1, n_cols, figsize=(5.5 * n_cols, 4.2), sharey=False)
+
+for col_i, (ds_name, full, deg, cell_cols, neuron_list) in enumerate(DATASETS):
+    draw_panel(axes[col_i], ds_name, full, deg, cell_cols, neuron_list)
+
+fig.suptitle('cest-2.1 DEG enrichment (NEU ≥ 1 TPM)\n'
+             'CAN = blue (filled dot = q<0.05, BH per neuron); grey = comparison neurons',
+             fontsize=9, y=1.02)
 fig.tight_layout()
 
 out = Path('data')
@@ -274,12 +275,20 @@ def collect_rows(ds_name, full, deg, cell_cols, neurons):
                 entries.append((neu, pct_idx, r))
         by_panel[tpm_min] = entries
 
-    # Second pass: apply BH per panel, build rows
+    # Second pass: apply BH per neuron within each panel, build rows
     rows = []
     for tpm_min, entries in by_panel.items():
-        pvals  = [r['p'] for _, _, r in entries]
-        qvals  = bh_correct(pvals)
-        for (neu, pct_idx, r), q in zip(entries, qvals):
+        # Group by neuron, apply BH to each neuron's 6 pct_max p-values
+        from itertools import groupby
+        entries_sorted = sorted(entries, key=lambda t: t[0])
+        neu_qvals = {}
+        for neu, grp in groupby(entries_sorted, key=lambda t: t[0]):
+            grp_list = list(grp)
+            pvals = [r['p'] for _, _, r in grp_list]
+            qvals = bh_correct(pvals)
+            for (_, pct_idx, _), q in zip(grp_list, qvals):
+                neu_qvals[(neu, pct_idx)] = float(q)
+        for (neu, pct_idx, r), q in zip(entries, [neu_qvals[(n, pi)] for n, pi, _ in entries]):
             rows.append(dict(dataset=ds_name, neuron=neu, tpm_min=tpm_min,
                              pct_max=r['pct'], N=r['N'], K=r['K'],
                              n=r['n'], k=r['k'],
@@ -304,20 +313,19 @@ def print_table(ds_name, rows):
 
 # ── Collect all results ───────────────────────────────────────────────────────
 all_can_rows, all_neuron_rows = [], []
-for ds_name, full, deg, cell_cols in DATASETS:
+# Use first 3 datasets (cat-1+ panels) for tables; skip the all-neurons panel
+for ds_name, full, deg, cell_cols, _ in DATASETS[:3]:
     available = [c for c in CAT1_NEURONS if c in cell_cols]
-    can_rows = collect_rows(ds_name, full, deg, cell_cols, ['CAN'])
-    all_rows = collect_rows(ds_name, full, deg, cell_cols, available)
-    all_can_rows.extend(can_rows)
-    all_neuron_rows.extend(all_rows)
+    all_can_rows.extend(collect_rows(ds_name, full, deg, cell_cols, ['CAN']))
+    all_neuron_rows.extend(collect_rows(ds_name, full, deg, cell_cols, available))
 
 # ── Print tables ──────────────────────────────────────────────────────────────
 print('\n\n── TABLE 1: CAN ──')
-for ds_name in [d[0] for d in DATASETS]:
+for ds_name in [d[0] for d in DATASETS[:3]]:
     print_table(ds_name, [r for r in all_can_rows if r['dataset'] == ds_name])
 
 print('\n\n── TABLE 2: all cat-1+ neurons ──')
-for ds_name in [d[0] for d in DATASETS]:
+for ds_name in [d[0] for d in DATASETS[:3]]:
     print_table(ds_name, [r for r in all_neuron_rows if r['dataset'] == ds_name])
 
 # ── Save CSVs ─────────────────────────────────────────────────────────────────
