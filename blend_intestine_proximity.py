@@ -406,8 +406,8 @@ print(metrics[['neuron_class', 'coverage', 'd_min_um', 'd_median_um',
                'contact_span_um', 'frac_within_thresh']].to_string(index=False))
 
 # ── Figure ────────────────────────────────────────────────────────────────────
-COL_CANL    = '#2166ac'   # dark blue (solid in AP figure)
-COL_CANR    = '#6baed6'   # lighter blue (dashed in AP figure)
+COL_CANL    = '#2166ac'   # dark blue
+COL_CANR    = '#2166ac'   # same dark blue; row position distinguishes L vs R
 COL_PDE     = '#e08030'
 COL_PARTIAL = '#74add1'
 COL_HEAD    = '#bdbdbd'

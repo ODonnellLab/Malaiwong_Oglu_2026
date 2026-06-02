@@ -138,7 +138,7 @@ profiles = {
 # ── Colours ───────────────────────────────────────────────────────────────────
 STYLE = {
     'CANL': dict(color='#2166ac', lw=1.8, ls='-',  label='CANL'),
-    'CANR': dict(color='#6baed6', lw=1.8, ls='--', label='CANR'),
+    'CANR': dict(color='#2166ac', lw=1.8, ls='--', label='CANR'),
     'PDEL': dict(color='#e08030', lw=1.5, ls='-',  label='PDEL'),
     'PDER': dict(color='#f4a460', lw=1.5, ls='--', label='PDER'),
     'HSNL': dict(color='#74add1', lw=1.2, ls='-',  label='HSNL'),
