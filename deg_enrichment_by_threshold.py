@@ -35,6 +35,11 @@ def load_taylor(stem):
 t_adult_full, ccols_a = load_taylor('Adult')
 t_l4_full,    ccols_l = load_taylor('L4')
 
+# Pseudogenes excluded from all DEG lists
+PSEUDOGENE_EXCLUDE = {
+    'WBGene000453662',   # Y17D7C.3 — pseudogene, absent from Ghaddar
+}
+
 t_adult_deg = pd.read_csv('Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
 t_l4_deg    = pd.read_csv('Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
 for df in [t_adult_deg, t_l4_deg]:
@@ -42,6 +47,7 @@ for df in [t_adult_deg, t_l4_deg]:
     df.set_index('wbgene', inplace=True)
     if 'gene_name' in df.columns:
         df.drop(columns='gene_name', inplace=True)
+    df.drop(index=df.index.intersection(PSEUDOGENE_EXCLUDE), inplace=True)
 
 
 # ── Load Ghaddar data ─────────────────────────────────────────────────────────
