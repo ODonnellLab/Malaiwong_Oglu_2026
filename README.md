@@ -359,10 +359,13 @@ specificity threshold (1%, 5%, 10%, 20%, 33%, 50%):
 Enrichment > 1 indicates DEGs are disproportionately represented among genes that are
 both expressed in the neuron and CAN-specific at the given threshold.
 
-**DEG sources:** `Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (31 adult
-DEGs) and `Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (26 L4 DEGs).
+**DEG sources:** `Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (40 adult
+DEGs after excluding Y17D7C.3, a pseudogene) and
+`Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (26 L4 DEGs).
 Taylor gene IDs carry a trailing version digit (e.g. `WBGene000211602`) absent from
 Ghaddar IDs (`WBGene00021160`); the last character is stripped before matching.
+Apparent gene name discrepancies between atlases (e.g. scb-1 → H19N07.3) reflect
+WormBase annotation version differences, not wrong-gene assignments.
 
 **Reproduce:**
 
