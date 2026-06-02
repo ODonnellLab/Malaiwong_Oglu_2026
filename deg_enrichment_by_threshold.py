@@ -121,37 +121,40 @@ print(f'  Adult DEGs matched: {g_full.index.isin(g_adult_deg_idx).sum()} / {len(
 CAT1_NEURONS = ['ADE', 'ADF', 'AVM', 'CAN', 'CEP', 'HSN', 'NSM', 'PDE',
                 'RIC', 'RIH', 'RIM', 'RIR', 'ASI', 'VC_4_5']
 
-TPM_MINS  = [1]
-PCT_THRS  = [0.01, 0.05, 0.10, 0.20, 0.40, 0.80]
-XLABELS   = ['1%', '5%', '10%', '20%', '40%', '80%']
+TPM_MINS   = [1]
+FOLD_THRS  = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0]   # NEU_TPM / gene_mean (0=unexpressed)
+XLABELS    = ['0.25×', '0.5×', '1×', '2×', '4×', '8×', '16×', '32×', '64×']
+MIN_K      = 5   # minimum background pool size; points with K < MIN_K hidden
 
 
-def compute_enrichment(full, deg, cell_cols, neu, tpm_min, pct_thrs):
+def compute_enrichment(full, deg, cell_cols, neu, tpm_min, fold_thrs):
     if neu not in full.columns:
         return None
 
-    measured  = full[full[cell_cols].notna().any(axis=1)]
-    row_max   = measured[cell_cols].max(axis=1)
-    neu_expr  = measured[neu].fillna(0)
+    measured   = full[full[cell_cols].notna().any(axis=1)]
+    # Mean across all cell types treating unexpressed (NaN) as 0; clipped to
+    # avoid division by zero for genes with near-zero mean.
+    row_mean   = measured[cell_cols].fillna(0).mean(axis=1).clip(lower=1e-6)
+    neu_expr   = measured[neu].fillna(0)
 
-    degs_m    = deg[deg.index.isin(measured.index)]
-    neu_d     = neu_expr.reindex(degs_m.index)
-    row_max_d = row_max.reindex(degs_m.index)
+    degs_m     = deg[deg.index.isin(measured.index)]
+    neu_d      = neu_expr.reindex(degs_m.index)
+    row_mean_d = row_mean.reindex(degs_m.index)
 
     N = len(measured)
     n = len(degs_m)
 
     rows = []
-    for pct in pct_thrs:
-        K = int(((neu_expr >= tpm_min) & ((neu_expr / row_max) >= pct)).sum())
-        k = int(((neu_d   >= tpm_min) & ((neu_d   / row_max_d) >= pct)).sum())
+    for fold in fold_thrs:
+        K = int(((neu_expr >= tpm_min) & ((neu_expr / row_mean) >= fold)).sum())
+        k = int(((neu_d   >= tpm_min) & ((neu_d   / row_mean_d) >= fold)).sum())
 
         bg  = K / N if N else 0
         obs = k / n if n else 0
         enr = obs / bg if bg else 0
         p   = hypergeom.sf(k - 1, N, K, n) if K > 0 and n > 0 and k > 0 else 1.0
 
-        rows.append(dict(pct=pct, N=N, K=K, n=n, k=k,
+        rows.append(dict(fold=fold, N=N, K=K, n=n, k=k,
                          bg=bg, obs=obs, enr=enr, p=p))
     return rows
 
@@ -165,7 +168,7 @@ DATASETS = [
     ('Taylor L4 — all neurons', t_l4_full, t_l4_deg, ccols_l, None),
 ]
 
-x = np.arange(len(PCT_THRS))
+x = np.arange(len(FOLD_THRS))
 X_LABEL_OFFSET = 0.18
 tpm_min = TPM_MINS[0]
 
@@ -177,10 +180,10 @@ def draw_panel(ax, ds_name, full, deg, cell_cols, neuron_list):
     available = [n for n in available if n in cell_cols]
     all_neurons = (neuron_list is None)   # all-neurons panel → thinner lines
 
-    # Compute enrichments and apply BH per neuron (n=6 pct_max thresholds)
+    # Compute enrichments and apply BH per neuron (n=6 fold thresholds)
     panel_res, sig_map = {}, {}
     for neu in available:
-        res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, PCT_THRS)
+        res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, FOLD_THRS)
         if res is None:
             continue
         panel_res[neu] = res
@@ -188,10 +191,10 @@ def draw_panel(ax, ds_name, full, deg, cell_cols, neuron_list):
         for xi, q in enumerate(qvals):
             sig_map[(neu, xi)] = bool(q < 0.05)
 
-    # Plot lines and markers
+    # Plot lines and markers; mask points where K < MIN_K
     label_positions = []
     for neu, res in panel_res.items():
-        enr    = [r['enr'] for r in res]
+        enr    = [r['enr'] if r['K'] >= MIN_K else np.nan for r in res]
         is_can = (neu == 'CAN')
         color  = '#1a5fa8' if is_can else '#aaaaaa'
         lw     = 2.0 if is_can else (0.4 if all_neurons else 0.8)
@@ -199,14 +202,18 @@ def draw_panel(ax, ds_name, full, deg, cell_cols, neuron_list):
 
         ax.plot(x, enr, color=color, lw=lw, zorder=5 if is_can else 2, alpha=alpha)
         for xi, e in enumerate(enr):
+            if np.isnan(e):
+                continue
             if sig_map.get((neu, xi), False):
                 ax.scatter(xi, e, color=color,
                            s=40 if is_can else 15,
                            alpha=1.0 if is_can else 0.6, zorder=6)
 
-        has_sig = any(sig_map.get((neu, xi), False) for xi in range(len(PCT_THRS)))
+        has_sig = any(sig_map.get((neu, xi), False) for xi in range(len(FOLD_THRS)))
         if is_can or has_sig:
-            label_positions.append((enr[-1], neu, color, is_can))
+            last_valid = next((e for e in reversed(enr) if not np.isnan(e)), None)
+            if last_valid is not None:
+                label_positions.append((last_valid, neu, color, is_can))
 
     # Place labels, nudging overlapping ones apart
     label_positions.sort(key=lambda t: t[0])
@@ -227,7 +234,7 @@ def draw_panel(ax, ds_name, full, deg, cell_cols, neuron_list):
     ax.set_xticks(x)
     ax.set_xticklabels(XLABELS, fontsize=8)
     ax.set_xlim(x[0] - 0.3, x[-1] + 1.4)
-    ax.set_xlabel('Neuron / gene-max threshold', fontsize=8)
+    ax.set_xlabel('Fold over mean neuronal expression', fontsize=8)
     ax.set_ylabel('Enrichment', fontsize=8)
     ax.set_title(ds_name, fontsize=10)
     ax.spines[['top', 'right']].set_visible(False)
@@ -246,7 +253,7 @@ fig, axes = plt.subplots(1, n_cols, figsize=(5.5 * n_cols, 4.2), sharey=False)
 for col_i, (ds_name, full, deg, cell_cols, neuron_list) in enumerate(DATASETS):
     draw_panel(axes[col_i], ds_name, full, deg, cell_cols, neuron_list)
 
-fig.suptitle('cest-2.1 DEG enrichment (NEU ≥ 1 TPM)\n'
+fig.suptitle('cest-2.1 DEG enrichment (NEU ≥ 1 TPM, fold over mean neuronal expression)\n'
              'CAN = blue (filled dot = q<0.05, BH per neuron); grey = comparison neurons',
              fontsize=9, y=1.02)
 fig.tight_layout()
@@ -259,26 +266,23 @@ plt.close()
 print('Saved data/can_deg_enrichment_by_threshold.png')
 
 
-HDR = (f'  {"neuron":>8}  {"tpm_min":>7}  {"pct%":>5}  {"N":>5}  {"K":>5}'
+HDR = (f'  {"neuron":>8}  {"tpm_min":>7}  {"fold":>5}  {"N":>5}  {"K":>5}'
        f'  {"n":>4}  {"k":>3}  {"bg%":>6}  {"obs%":>5}  {"enr":>5}  {"p":>7}  {"q_BH":>7}')
 
 def collect_rows(ds_name, full, deg, cell_cols, neurons):
-    # First pass: compute all enrichments grouped by tpm_min (= panel)
-    by_panel = {}   # tpm_min -> list of (neu, pct_idx, result_dict)
+    by_panel = {}
     for tpm_min in TPM_MINS:
         entries = []
         for neu in neurons:
-            res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, PCT_THRS)
+            res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, FOLD_THRS)
             if res is None:
                 continue
-            for pct_idx, r in enumerate(res):
-                entries.append((neu, pct_idx, r))
+            for fold_idx, r in enumerate(res):
+                entries.append((neu, fold_idx, r))
         by_panel[tpm_min] = entries
 
-    # Second pass: apply BH per neuron within each panel, build rows
     rows = []
     for tpm_min, entries in by_panel.items():
-        # Group by neuron, apply BH to each neuron's 6 pct_max p-values
         from itertools import groupby
         entries_sorted = sorted(entries, key=lambda t: t[0])
         neu_qvals = {}
@@ -286,11 +290,11 @@ def collect_rows(ds_name, full, deg, cell_cols, neurons):
             grp_list = list(grp)
             pvals = [r['p'] for _, _, r in grp_list]
             qvals = bh_correct(pvals)
-            for (_, pct_idx, _), q in zip(grp_list, qvals):
-                neu_qvals[(neu, pct_idx)] = float(q)
-        for (neu, pct_idx, r), q in zip(entries, [neu_qvals[(n, pi)] for n, pi, _ in entries]):
+            for (_, fold_idx, _), q in zip(grp_list, qvals):
+                neu_qvals[(neu, fold_idx)] = float(q)
+        for (neu, fold_idx, r), q in zip(entries, [neu_qvals[(n, fi)] for n, fi, _ in entries]):
             rows.append(dict(dataset=ds_name, neuron=neu, tpm_min=tpm_min,
-                             pct_max=r['pct'], N=r['N'], K=r['K'],
+                             fold_thr=r['fold'], N=r['N'], K=r['K'],
                              n=r['n'], k=r['k'],
                              bg_frac=round(r['bg'], 6),
                              obs_frac=round(r['obs'], 6),
@@ -306,7 +310,7 @@ def print_table(ds_name, rows):
     print(HDR)
     for r in rows:
         sig = '*' if r['sig_bh'] else ' '
-        print(f'  {r["neuron"]:>8}  {r["tpm_min"]:>7}  {r["pct_max"]*100:>4.0f}%'
+        print(f'  {r["neuron"]:>8}  {r["tpm_min"]:>7}  {r["fold_thr"]:>5.2g}×'
               f'  {r["N"]:>5}  {r["K"]:>5}  {r["n"]:>4}  {r["k"]:>3}'
               f'  {r["bg_frac"]*100:>5.1f}%  {r["obs_frac"]*100:>4.0f}%'
               f'  {r["enrichment"]:>5.2f}  {r["p_hypergeom"]:>7.4f}  {r["q_bh"]:>7.4f}{sig}')

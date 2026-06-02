@@ -346,22 +346,25 @@ measured genes in two single-cell transcriptomic atlases.
 
 **Enrichment test (per neuron, per dataset):**
 
-For each combination of minimum TPM threshold (1, 10, 25 TPM) and CAN/gene-max
-specificity threshold (1%, 5%, 10%, 20%, 33%, 50%):
+For each fold-over-mean specificity threshold (0.25×, 0.5×, 1×, 2×, 4×, 8×, 16×, 32×, 64×):
 
 - *N* = all genes with any non-NA measurement in the atlas
-- *K* = genes where `NEU_TPM ≥ tpm_min` AND `NEU_TPM / gene_max ≥ pct_max`
+- *K* = genes where `NEU_TPM ≥ 1` AND `NEU_TPM / gene_mean ≥ fold_thr`, where
+  `gene_mean` is the mean TPM across all cell types treating NaN as 0
 - *n* = all *cest-2.1* DEGs present in the atlas
 - *k* = DEGs satisfying both conditions
 - Enrichment = (*k*/*n*) / (*K*/*N*)
-- *p*-value from one-tailed hypergeometric test (upper tail)
+- *p*-value from one-tailed hypergeometric test; BH correction per neuron (9 thresholds)
+- Points with K < 5 are not plotted
 
-Enrichment > 1 indicates DEGs are disproportionately represented among genes that are
-both expressed in the neuron and CAN-specific at the given threshold.
+The fold-over-mean metric correctly penalises genes expressed broadly across many
+neurons: a gene with high CAN expression but also expressed in 20 other neurons at
+similar levels will have a lower fold than one exclusively expressed in CAN.
+The theoretical maximum fold for 132 Taylor L4 cell types is 132× (exclusive CAN expression).
 
 **DEG sources:** `Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (40 adult
 DEGs after excluding Y17D7C.3, a pseudogene) and
-`Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (26 L4 DEGs).
+`Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (25 L4 DEGs).
 Taylor gene IDs carry a trailing version digit (e.g. `WBGene000211602`) absent from
 Ghaddar IDs (`WBGene00021160`); the last character is stripped before matching.
 Apparent gene name discrepancies between atlases (e.g. scb-1 → H19N07.3) reflect
