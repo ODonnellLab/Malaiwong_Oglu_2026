@@ -259,6 +259,17 @@ neu_fill['y_um'] = neu_fill['y'] * BLEND_TO_UM
 n_interp = int(neu_fill['interpolated'].sum())
 print(f"Neuron after gap-fill: {len(neu_fill)}  (+{n_interp} interpolated)")
 
+# Display filter cutoff: anterior edge of CEP soma.
+# Approximated as the most anterior per-mesh centroid (mean vertex y) across
+# the 4 CEP meshes.  Vertex-mean is biased toward the soma (the largest
+# structure), giving a clean separation from the anteriorly-projecting
+# sensory dendrites that inflate distances.
+cep_centroid_y = (verts[verts['mesh'].isin(['CEPDL','CEPDR','CEPVL','CEPVR'])]
+                  .groupby('mesh')['y'].mean()
+                  .min())
+NERVE_RING_Y_UM = float(cep_centroid_y * BLEND_TO_UM)
+print(f"CEP soma cutoff (min mesh centroid Y): {NERVE_RING_Y_UM:.1f} µm")
+
 # ── Cross-sectional distance ──────────────────────────────────────────────────
 # Two regimes based on neuron Y relative to the intestine:
 #
@@ -395,26 +406,31 @@ print(metrics[['neuron_class', 'coverage', 'd_min_um', 'd_median_um',
                'contact_span_um', 'frac_within_thresh']].to_string(index=False))
 
 # ── Figure ────────────────────────────────────────────────────────────────────
-COL_CAN     = '#2166ac'
+COL_CANL    = '#2166ac'   # dark blue (solid in AP figure)
+COL_CANR    = '#6baed6'   # lighter blue (dashed in AP figure)
 COL_PDE     = '#e08030'
 COL_PARTIAL = '#74add1'
 COL_HEAD    = '#bdbdbd'
 
 def cls_color(cls):
-    if cls in ('CANL', 'CANR'):  return COL_CAN
+    if cls == 'CANL': return COL_CANL
+    if cls == 'CANR': return COL_CANR
     if cls in ('PDEL', 'PDER'):  return COL_PDE
+    if cls == 'VC4/5':           return COL_PARTIAL   # mid-body, not head-confined
     cov = COVERAGE.get(cls, '')
     if 'partial' in cov:         return COL_PARTIAL
     return COL_HEAD
 
-fig, axes = plt.subplots(1, 2, figsize=(10.5, 6.0),
-                          gridspec_kw={'width_ratios': [1.5, 1]})
+fig, ax = plt.subplots(figsize=(7.0, 5.5))
 
-# ── Panel A: distance distribution ───────────────────────────────────────────
-ax = axes[0]
 cls_order = metrics['neuron_class'].tolist()
 for i, cls in enumerate(cls_order):
-    d   = neu_fill[neu_fill['cls'] == cls]['d_nn_um'].values
+    # Exclude vertices anterior to the nerve ring (sensory dendrites projecting
+    # toward the nose tip); keep all processes at or posterior to the nerve ring
+    cls_data = neu_fill[(neu_fill['cls'] == cls) & (neu_fill['y_um'] >= NERVE_RING_Y_UM)]
+    if cls_data.empty:
+        cls_data = neu_fill[neu_fill['cls'] == cls]
+    d   = cls_data['d_nn_um'].values
     col = cls_color(cls)
     ax.scatter(d, [i] * len(d), s=3, color=col, alpha=0.3, zorder=2)
     ax.plot([np.percentile(d, 10), np.percentile(d, 90)], [i, i],
@@ -422,40 +438,34 @@ for i, cls in enumerate(cls_order):
     ax.plot([np.median(d)], [i], 'o', color=col, ms=6, zorder=4,
             markeredgecolor='white', markeredgewidth=0.5)
 
-ax.axvline(THRESH_UM, color='#cc3300', lw=1.2, ls='--',
-           label=f'{THRESH_UM:.0f} µm threshold')
+ax.axvline(THRESH_UM, color='#cc3300', lw=1.2, ls='--')
 ax.set_yticks(range(len(cls_order)))
 ax.set_yticklabels(cls_order, fontsize=9, fontstyle='italic')
 ax.set_xlabel('Cross-sectional distance to intestine (µm)', fontsize=9)
-ax.set_title('A   Distance to intestine\n'
-             '(cross-sectional within intestine region)',
+ax.set_title('Distance to intestine (cross-sectional within intestine region)',
              fontsize=9.5, loc='left', fontweight='bold')
-ax.legend(fontsize=8)
+ax.text(0.01, -0.10,
+        f'Vertices anterior to CEP soma excluded (body position < {NERVE_RING_Y_UM:.0f} µm)',
+        transform=ax.transAxes, fontsize=7, color='#777777', va='top')
 ax.spines[['top', 'right']].set_visible(False)
-ax.set_xlim(left=0)
-
-# ── Panel B: contact span bar chart ──────────────────────────────────────────
-ax2 = axes[1]
-cls_b  = metrics.sort_values('contact_span_um', ascending=False)
-cols_b = [cls_color(r['neuron_class']) for _, r in cls_b.iterrows()]
-ax2.barh(range(len(cls_b)), cls_b['contact_span_um'],
-         color=cols_b, edgecolor='white', lw=0.4, height=0.7)
-ax2.set_yticks(range(len(cls_b)))
-ax2.set_yticklabels(cls_b['neuron_class'], fontsize=9, fontstyle='italic')
-ax2.set_xlabel(f'Y-span within {THRESH_UM:.0f} µm of intestine (µm)', fontsize=9)
-ax2.set_title('B   Contact span along body axis',
-              fontsize=9.5, loc='left', fontweight='bold')
-ax2.spines[['top', 'right']].set_visible(False)
+# Cap at 98th percentile of filtered data; floor at 50 µm so head-neuron
+# soma distances (30–47 µm) remain visible
+cap = np.percentile(
+    neu_fill[neu_fill['y_um'] >= NERVE_RING_Y_UM]['d_nn_um'].values, 98)
+ax.set_xlim(0, max(cap, 50.0))
 
 handles = [
-    mpatches.Patch(color=COL_CAN,     label='CAN (L or R)'),
+    mpatches.Patch(color=COL_CANL,    label='CANL'),
+    mpatches.Patch(color=COL_CANR,    label='CANR'),
     mpatches.Patch(color=COL_PDE,     label='PDE (L or R)'),
-    mpatches.Patch(color=COL_PARTIAL, label='Partial morphology'),
+    mpatches.Patch(color=COL_PARTIAL, label='Partial morphology (HSN, AVM, VC4/5)'),
     mpatches.Patch(color=COL_HEAD,    label='Head-confined / soma only'),
+    plt.Line2D([], [], color='#cc3300', lw=1.2, ls='--',
+               label=f'{THRESH_UM:.0f} µm threshold'),
 ]
-ax2.legend(handles=handles, fontsize=7.5, loc='lower right', framealpha=0.9)
+ax.legend(handles=handles, fontsize=7.5, loc='lower right', framealpha=0.9)
 
-fig.tight_layout(w_pad=2)
+fig.tight_layout()
 out_stem = OUT / 'blend_intestine_proximity'
 fig.savefig(str(out_stem) + '.png', dpi=180, bbox_inches='tight')
 fig.savefig(str(out_stem) + '.pdf', bbox_inches='tight')

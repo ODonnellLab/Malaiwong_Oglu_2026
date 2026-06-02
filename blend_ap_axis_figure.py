@@ -52,6 +52,10 @@ int_v = verts[verts['mesh'].str.match(r'^int\d')]
 INT_Y_MIN = int_v['y'].min() * BLEND_TO_UM
 INT_Y_MAX = int_v['y'].max() * BLEND_TO_UM
 
+# Nerve ring reference line: anterior extent of RIH approximates the
+# anterior boundary of the nerve ring.
+NERVE_RING_Y = nn[nn['mesh'] == 'RIH']['y_um'].min()
+
 # Y-range (in µm) where HSNR/AVM share vertices with PDEL/PDER
 # Diagnosed in prior analysis — treat this zone as unreliable for those neurons
 SHARED_Y_MIN = -285.0
@@ -137,20 +141,26 @@ STYLE = {
     'CANR': dict(color='#6baed6', lw=1.8, ls='--', label='CANR'),
     'PDEL': dict(color='#e08030', lw=1.5, ls='-',  label='PDEL'),
     'PDER': dict(color='#f4a460', lw=1.5, ls='--', label='PDER'),
-    'HSNL': dict(color='#777777', lw=1.2, ls='-',  label='HSNL'),
-    'AVM':  dict(color='#aaaaaa', lw=1.2, ls='-',  label='AVM'),
+    'HSNL': dict(color='#74add1', lw=1.2, ls='-',  label='HSNL'),
+    'AVM':  dict(color='#74add1', lw=1.2, ls='--', label='AVM'),
 }
 
 # ── Figure ────────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(8.5, 4.0))
 
-# Intestine span (shaded background)
-ax.axvspan(INT_Y_MIN, INT_Y_MAX, color='#d4edda', alpha=0.5, zorder=0,
+# Shared-mesh zone drawn first (lower z); hatching is faint so green shows over it
+ax.axvspan(SHARED_Y_MIN, SHARED_Y_MAX, facecolor='none', hatch='///',
+           edgecolor='#ddb5b5', lw=0.5, zorder=0,
+           label='Shared-mesh zone\n(PDE/HSN L/R indistinguishable)')
+
+# Intestine span on top of hatching
+ax.axvspan(INT_Y_MIN, INT_Y_MAX, color='#d4edda', alpha=0.50, zorder=1,
            label='Intestine extent')
 
-# Shared-mesh unreliable zone
-ax.axvspan(SHARED_Y_MIN, SHARED_Y_MAX, color='#ffd9d9', alpha=0.6, zorder=1,
-           label='Shared-mesh zone\n(PDE/HSN L/R indistinguishable)')
+# Nerve ring reference
+ax.axvline(NERVE_RING_Y, color='#999999', lw=0.8, ls=':', zorder=2)
+ax.text(NERVE_RING_Y + 8, 58, 'Nerve\nring', ha='left', va='top',
+        fontsize=6.5, color='#777777')
 
 # Threshold line
 ax.axhline(THRESH_UM, color='#cc3300', lw=1.0, ls=':', zorder=5,
@@ -183,7 +193,7 @@ ax.set_ylabel('Min. distance to intestine (µm)', fontsize=10)
 ax.set_title('Neurite proximity to intestine along body axis\n'
              '(Virtual Worm Blender morphology, Blender-native coordinates)',
              fontsize=10, loc='left')
-ax.set_ylim(bottom=0)
+ax.set_ylim(0, 60)
 ax.spines[['top', 'right']].set_visible(False)
 
 # Legend — two columns to save vertical space
@@ -196,3 +206,101 @@ fig.savefig(str(out_stem) + '.png', dpi=180, bbox_inches='tight')
 fig.savefig(str(out_stem) + '.pdf', bbox_inches='tight')
 print(f"Saved {out_stem}.png / .pdf")
 plt.close()
+
+# ── Combined figure: AP-axis profile + neuron Y-extent (neuron_y_distribution) ──
+# Merge CANL/CANR → CAN and PDEL/PDER → PDE for the extent panel
+BILATERAL_MERGE = {'CANL': 'CAN', 'CANR': 'CAN', 'PDEL': 'PDE', 'PDER': 'PDE'}
+nn['display_cls'] = nn['cls'].apply(lambda c: BILATERAL_MERGE.get(c, c))
+
+# Order merged classes by minimum d_min_um (matches Panel A of blend_intestine_proximity)
+metrics_df = pd.read_csv(OUT / 'blend_intestine_proximity_metrics.csv')
+metrics_df['display_cls'] = metrics_df['neuron_class'].apply(
+    lambda c: BILATERAL_MERGE.get(c, c))
+cls_order_merged = (metrics_df.groupby('display_cls')['d_min_um'].min()
+                    .sort_values().index.tolist())
+
+# Y extent per merged class
+extent = (nn.groupby('display_cls')
+           .agg(y_min=('y_um', 'min'), y_max=('y_um', 'max'))
+           .reindex(cls_order_merged))
+
+# Colors match blend_intestine_proximity.py (CAN blue, PDE orange)
+COL_CAN_BAR  = '#2166ac'
+COL_PDE_BAR  = '#e08030'
+COL_PART_BAR = '#74add1'
+COL_REST_BAR = '#bdbdbd'
+
+def bar_color(cls):
+    if cls == 'CAN':                       return COL_CAN_BAR
+    if cls == 'PDE':                       return COL_PDE_BAR
+    if cls in {'HSN', 'AVM', 'VC4/5'}:   return COL_PART_BAR
+    return COL_REST_BAR
+
+fig2, (ax_top, ax_bot) = plt.subplots(
+    2, 1, figsize=(8.5, 6.5), sharex=True,
+    gridspec_kw={'height_ratios': [2, 1]})
+fig2.subplots_adjust(hspace=0.12)
+
+# ── Top panel: AP-axis proximity profiles ─────────────────────────────────────
+# Hatching first (lower z), then green intestine zone on top
+ax_top.axvspan(SHARED_Y_MIN, SHARED_Y_MAX, facecolor='none', hatch='///',
+               edgecolor='#ddb5b5', lw=0.5, zorder=0,
+               label='Shared-mesh zone\n(PDE/HSN L/R indistinguishable)')
+ax_top.axvspan(INT_Y_MIN, INT_Y_MAX, color='#d4edda', alpha=0.50, zorder=1,
+               label='Intestine extent')
+ax_top.axvline(NERVE_RING_Y, color='#999999', lw=0.8, ls=':', zorder=2)
+ax_top.axhline(THRESH_UM, color='#cc3300', lw=1.0, ls=':', zorder=5,
+               label=f'{THRESH_UM:.0f} µm threshold')
+
+for name, (yc, dm, interp) in profiles.items():
+    st = STYLE[name]
+    valid_seg = ~np.isnan(dm)
+    solid_yc  = np.where(valid_seg & ~interp, yc, np.nan)
+    solid_dm  = np.where(valid_seg & ~interp, dm, np.nan)
+    interp_yc = np.where(valid_seg & interp,  yc, np.nan)
+    interp_dm = np.where(valid_seg & interp,  dm, np.nan)
+    ax_top.plot(solid_yc,  solid_dm,  color=st['color'], lw=st['lw'], ls=st['ls'],  zorder=6)
+    ax_top.plot(interp_yc, interp_dm, color=st['color'], lw=st['lw'], ls=':', alpha=0.5, zorder=6)
+    ax_top.plot([], [], color=st['color'], lw=st['lw'], ls=st['ls'], label=st['label'])
+
+ax_top.set_ylabel('Min. distance to intestine (µm)', fontsize=9)
+ax_top.set_ylim(0, 60)
+ax_top.spines[['top', 'right']].set_visible(False)
+ax_top.legend(fontsize=7.5, ncol=2, framealpha=0.9, loc='upper right')
+ax_top.set_title('A   Neurite proximity to intestine along body axis',
+                 fontsize=9.5, loc='left', fontweight='bold')
+
+# ── Bottom panel: neuron Y-extent bars ────────────────────────────────────────
+ax_bot.axvspan(SHARED_Y_MIN, SHARED_Y_MAX, facecolor='none', hatch='///',
+               edgecolor='#ddb5b5', lw=0.5, zorder=0)
+ax_bot.axvspan(INT_Y_MIN, INT_Y_MAX, color='#d4edda', alpha=0.50, zorder=1)
+ax_bot.axvline(NERVE_RING_Y, color='#999999', lw=0.8, ls=':', zorder=2)
+ax_bot.text(NERVE_RING_Y, len(cls_order_merged) - 0.2, 'Nerve\nring',
+            ha='center', va='top', fontsize=6.5, color='#777777', zorder=5)
+
+for i, cls in enumerate(cls_order_merged):
+    row = extent.loc[cls]
+    ax_bot.barh(i, row['y_max'] - row['y_min'], left=row['y_min'],
+                height=0.65, color=bar_color(cls), edgecolor='white', lw=0.4, zorder=3)
+
+ax_bot.set_yticks(range(len(cls_order_merged)))
+ax_bot.set_yticklabels(cls_order_merged, fontsize=9, fontstyle='italic')
+ax_bot.set_xlabel('Body position (µm, Blender world coordinates)', fontsize=9)
+ax_bot.spines[['top', 'right']].set_visible(False)
+ax_bot.set_title('B   cat-1⁺ neuron process extent',
+                 fontsize=9.5, loc='left', fontweight='bold')
+
+handles_b = [
+    mpatches.Patch(facecolor='#d4edda', edgecolor='#5a9c6a', label='Intestine extent'),
+    mpatches.Patch(color=COL_CAN_BAR,  label='CAN (full body)'),
+    mpatches.Patch(color=COL_PDE_BAR,  label='PDE (full body)'),
+    mpatches.Patch(color=COL_PART_BAR, label='Partial morphology (HSN, AVM, VC4/5)'),
+    mpatches.Patch(color=COL_REST_BAR, label='Head-confined / soma only'),
+]
+ax_bot.legend(handles=handles_b, fontsize=7.5, loc='lower right', framealpha=0.9)
+
+out2 = OUT / 'neuron_y_distribution'
+fig2.savefig(str(out2) + '.png', dpi=180, bbox_inches='tight')
+fig2.savefig(str(out2) + '.pdf', bbox_inches='tight')
+print(f"Saved {out2}.png / .pdf")
+plt.close(fig2)
