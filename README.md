@@ -126,6 +126,7 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 | `sos_epistasis_plots.py` | SOS epistasis barplot + paired ECDFs (figure 1e) |
 | `sos_figure_plots.py` | All other per-genotype SOS barplot + ECDF figures |
 | `sos_analysis.py` | SOS strip plot, ECDF, and speed correlation |
+| `deg_enrichment_by_threshold.py` | DEG enrichment analysis — CAN specificity vs expression threshold (Taylor + Ghaddar atlases) |
 | `exclude.csv` | Genotype/date pairs excluded before normalization |
 | `test_reproduce.py` | Reproduction test: demo (no NAS) and full NAS rescan |
 | `SESSION_NOTES.md` | Figure style conventions and layout decisions |
@@ -150,6 +151,10 @@ python batch_postural_comparison.py --out-dir results/ --exclude exclude.csv
 | `data/sos_stats.csv` | LMM time ratios vs N2 — all genotypes |
 | `data/speed_sos_correlation.pdf` | Speed vs SOS response time correlation |
 | `data/supplemental_sos_combined.pdf` | SOS strip plot + ECDF + correlation supplemental figure |
+| `data/can_deg_enrichment_by_threshold.pdf` | DEG enrichment figure (3 rows × 3 columns) |
+| `data/can_deg_enrichment_by_threshold.png` | DEG enrichment figure (raster) |
+| `data/deg_enrichment_can_statistics.csv` | Hypergeometric enrichment statistics — CAN only, all datasets and thresholds |
+| `data/deg_enrichment_all_neurons_statistics.csv` | Same as above for all cat-1+ neurons |
 | `demo_data/` | 4-genotype subset for install verification (see below) |
 
 ---
@@ -326,6 +331,50 @@ Key constants:
 | `B_FLAT / B_ROT` | 0.54 / 0.72 in | Bottom margin for flat vs rotated x-labels |
 
 See `SESSION_NOTES.md` for full layout conventions and typography rules.
+
+---
+
+## DEG enrichment analysis
+
+`deg_enrichment_by_threshold.py` tests whether *cest-2.1* differential expression
+genes (DEGs) are enriched for CAN-expressed and CAN-specific genes relative to all
+measured genes in two single-cell transcriptomic atlases.
+
+**Expression atlases used:**
+- Taylor et al. adult and L4 *C. elegans* neuron atlases (`Taylor_Adult_*` and `Taylor_L4_*` CSVs)
+- Ghaddar et al. 2023 adult *C. elegans* atlas (`Ghaddar_prcnt_tpm_bootstrap.csv`), restricted to the 104 neuronal cell types with names overlapping Taylor (88 exact matches + 16 merged types covering split Taylor neurons)
+
+**Enrichment test (per neuron, per dataset):**
+
+For each combination of minimum TPM threshold (1, 10, 25 TPM) and CAN/gene-max
+specificity threshold (1%, 5%, 10%, 20%, 33%, 50%):
+
+- *N* = all genes with any non-NA measurement in the atlas
+- *K* = genes where `NEU_TPM ≥ tpm_min` AND `NEU_TPM / gene_max ≥ pct_max`
+- *n* = all *cest-2.1* DEGs present in the atlas
+- *k* = DEGs satisfying both conditions
+- Enrichment = (*k*/*n*) / (*K*/*N*)
+- *p*-value from one-tailed hypergeometric test (upper tail)
+
+Enrichment > 1 indicates DEGs are disproportionately represented among genes that are
+both expressed in the neuron and CAN-specific at the given threshold.
+
+**DEG sources:** `Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (31 adult
+DEGs) and `Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv` (26 L4 DEGs).
+Taylor gene IDs carry a trailing version digit (e.g. `WBGene000211602`) absent from
+Ghaddar IDs (`WBGene00021160`); the last character is stripped before matching.
+
+**Reproduce:**
+
+```bash
+python deg_enrichment_by_threshold.py
+```
+
+Outputs figure to `data/can_deg_enrichment_by_threshold.pdf/.png` and statistics
+tables to `data/deg_enrichment_can_statistics.csv` and
+`data/deg_enrichment_all_neurons_statistics.csv`.
+
+See `methods_deg_enrichment.txt` for the full methods text.
 
 ---
 

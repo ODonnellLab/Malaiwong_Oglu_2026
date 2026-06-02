@@ -228,29 +228,59 @@ print('Saved data/can_deg_enrichment_by_threshold.png')
 HDR = (f'  {"neuron":>8}  {"tpm_min":>7}  {"pct%":>5}  {"N":>5}  {"K":>5}'
        f'  {"n":>4}  {"k":>3}  {"bg%":>6}  {"obs%":>5}  {"enr":>5}  {"p":>7}')
 
-def print_table(ds_name, full, deg, cell_cols, neurons):
-    print(f'\n{"="*len(HDR.rstrip())}')
-    print(f'{ds_name} — {", ".join(neurons)}')
-    print(HDR)
+def collect_rows(ds_name, full, deg, cell_cols, neurons):
+    rows = []
     for tpm_min in TPM_MINS:
         for neu in neurons:
             res = compute_enrichment(full, deg, cell_cols, neu, tpm_min, PCT_THRS)
             if res is None:
                 continue
             for r in res:
-                sig = '*' if r['p'] < 0.05 else ' '
-                print(f'  {neu:>8}  {tpm_min:>7}  {r["pct"]*100:>4.0f}%'
-                      f'  {r["N"]:>5}  {r["K"]:>5}  {r["n"]:>4}  {r["k"]:>3}'
-                      f'  {r["bg"]*100:>5.1f}%  {r["obs"]*100:>4.0f}%'
-                      f'  {r["enr"]:>5.2f}  {r["p"]:>7.4f}{sig}')
+                rows.append(dict(dataset=ds_name, neuron=neu, tpm_min=tpm_min,
+                                 pct_max=r['pct'], N=r['N'], K=r['K'],
+                                 n=r['n'], k=r['k'],
+                                 bg_frac=round(r['bg'], 6),
+                                 obs_frac=round(r['obs'], 6),
+                                 enrichment=round(r['enr'], 4),
+                                 p_hypergeom=round(r['p'], 6),
+                                 sig=(r['p'] < 0.05)))
+    return rows
 
-# ── Table 1: CAN only ─────────────────────────────────────────────────────────
-print('\n\n── TABLE 1: CAN ──')
-for ds_name, full, deg, cell_cols in DATASETS:
-    print_table(ds_name, full, deg, cell_cols, ['CAN'])
+def print_table(ds_name, rows):
+    print(f'\n{"="*60}')
+    print(f'{ds_name}')
+    print(HDR)
+    for r in rows:
+        sig = '*' if r['sig'] else ' '
+        print(f'  {r["neuron"]:>8}  {r["tpm_min"]:>7}  {r["pct_max"]*100:>4.0f}%'
+              f'  {r["N"]:>5}  {r["K"]:>5}  {r["n"]:>4}  {r["k"]:>3}'
+              f'  {r["bg_frac"]*100:>5.1f}%  {r["obs_frac"]*100:>4.0f}%'
+              f'  {r["enrichment"]:>5.2f}  {r["p_hypergeom"]:>7.4f}{sig}')
 
-# ── Table 2: all cat-1+ neurons ───────────────────────────────────────────────
-print('\n\n── TABLE 2: all cat-1+ neurons ──')
+# ── Collect all results ───────────────────────────────────────────────────────
+all_can_rows, all_neuron_rows = [], []
 for ds_name, full, deg, cell_cols in DATASETS:
     available = [c for c in CAT1_NEURONS if c in cell_cols]
-    print_table(ds_name, full, deg, cell_cols, available)
+    can_rows = collect_rows(ds_name, full, deg, cell_cols, ['CAN'])
+    all_rows = collect_rows(ds_name, full, deg, cell_cols, available)
+    all_can_rows.extend(can_rows)
+    all_neuron_rows.extend(all_rows)
+
+# ── Print tables ──────────────────────────────────────────────────────────────
+print('\n\n── TABLE 1: CAN ──')
+for ds_name in [d[0] for d in DATASETS]:
+    print_table(ds_name, [r for r in all_can_rows if r['dataset'] == ds_name])
+
+print('\n\n── TABLE 2: all cat-1+ neurons ──')
+for ds_name in [d[0] for d in DATASETS]:
+    print_table(ds_name, [r for r in all_neuron_rows if r['dataset'] == ds_name])
+
+# ── Save CSVs ─────────────────────────────────────────────────────────────────
+can_df = pd.DataFrame(all_can_rows)
+can_df.to_csv(out / 'deg_enrichment_can_statistics.csv', index=False)
+
+all_df = pd.DataFrame(all_neuron_rows)
+all_df.to_csv(out / 'deg_enrichment_all_neurons_statistics.csv', index=False)
+
+print('\nSaved data/deg_enrichment_can_statistics.csv')
+print('Saved data/deg_enrichment_all_neurons_statistics.csv')
