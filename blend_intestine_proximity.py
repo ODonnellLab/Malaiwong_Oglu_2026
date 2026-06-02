@@ -454,16 +454,6 @@ cap = np.percentile(
     neu_fill[neu_fill['y_um'] >= NERVE_RING_Y_UM]['d_nn_um'].values, 98)
 ax.set_xlim(0, max(cap, 50.0))
 
-handles = [
-    mpatches.Patch(color=COL_CANL,    label='CANL'),
-    mpatches.Patch(color=COL_CANR,    label='CANR'),
-    mpatches.Patch(color=COL_PDE,     label='PDE (L or R)'),
-    mpatches.Patch(color=COL_PARTIAL, label='Partial morphology (HSN, AVM, VC4/5)'),
-    mpatches.Patch(color=COL_HEAD,    label='Head-confined / soma only'),
-    plt.Line2D([], [], color='#cc3300', lw=1.2, ls='--',
-               label=f'{THRESH_UM:.0f} µm threshold'),
-]
-ax.legend(handles=handles, fontsize=7.5, loc='lower right', framealpha=0.9)
 
 fig.tight_layout()
 out_stem = OUT / 'blend_intestine_proximity'
