@@ -19,10 +19,3 @@ README.html
 
 # Large bootstrap output (> 3M rows)
 deg_enrichment/input/Ghaddar_prcnt_tpm_bootstrap.csv
-
-# Confidential — not for remote repository
-referee_comments.txt
-SESSION_NOTES.md
-
-# Local Claude Code settings
-.claude/
