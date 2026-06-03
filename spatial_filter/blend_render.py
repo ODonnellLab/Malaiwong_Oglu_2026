@@ -22,13 +22,17 @@ import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D          # noqa: F401 (registers projection)
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 ap = argparse.ArgumentParser()
-ap.add_argument('--out-dir',  default='data/nml_vertices')
+ap.add_argument('--out-dir',  default='data')
 ap.add_argument('--y-slice',  type=float, default=150.0,
                 help='Body position (µm) for cross-section panel (default 150)')
 args    = ap.parse_args()

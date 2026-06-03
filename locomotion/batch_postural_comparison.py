@@ -31,11 +31,16 @@ import sys
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from scipy import stats as sp_stats
 
-OUT_DIR = "data/postural_results"
+OUT_DIR = "data"
 FRAME_RATE = 10   # fps, from IR_medium.yaml
 N2_FOLDER = "N2"
 
@@ -259,7 +264,7 @@ def main():
     parser.add_argument("--frame-rate", type=float, default=FRAME_RATE)
     parser.add_argument("--title",      default="Forward-run speed (fold-change vs N2)",
                         help="Figure title")
-    parser.add_argument("--exclude",    default=None,
+    parser.add_argument("--exclude",    default="exclude.csv",
                         help="CSV file with genotype,date rows to censor")
     parser.add_argument("--min-speed",  type=float, default=0.03,
                         help="Exclude particles with mean speed below this (mm/s). "

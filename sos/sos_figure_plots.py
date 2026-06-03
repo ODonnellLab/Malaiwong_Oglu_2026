@@ -428,7 +428,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", required=True,
                         help="Directory containing raw SOS CSV files")
-    parser.add_argument("--out-dir",  default="data/sos_figures/")
+    parser.add_argument("--out-dir",  default="data/figures")
     parser.add_argument("--file",     default=None,
                         help="Process a single named CSV file only")
     args = parser.parse_args()

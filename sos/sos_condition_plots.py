@@ -214,7 +214,7 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", default=None,
                         help="Raw SOS CSV directory; required on first run or to rescan")
-    parser.add_argument("--out-dir",  default="data/")
+    parser.add_argument("--out-dir",  default="data")
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 

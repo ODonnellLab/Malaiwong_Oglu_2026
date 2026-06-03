@@ -9,7 +9,7 @@ Run:
       --background Virtual_Worm_February_2012.blend \
       --python extract_world_verts.py
 
-Outputs four files into data/nml_vertices/:
+Outputs four files into data/:
   blend_world_verts.csv      — one row per vertex: mesh, vid, x, y, z
   blend_world_face_cents.csv — one row per face centroid: mesh, x, y, z
   blend_world_faces.csv      — one row per face: mesh, fid, v0, v1, v2[, v3]
@@ -23,7 +23,7 @@ import csv
 import os
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "data", "nml_vertices")
+                       "data")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 VERTS_CSV      = os.path.join(OUT_DIR, "blend_world_verts.csv")

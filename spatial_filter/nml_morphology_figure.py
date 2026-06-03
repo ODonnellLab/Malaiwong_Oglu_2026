@@ -1,17 +1,37 @@
 """
 Figure: cat-1+ neuron process morphology vs. intestine (NeuroML coordinates).
 Spatial filter — step 2 of CAN identification rebuttal argument.
+
+NOTE: requires data/neuron_segments.csv which is not currently in the repo.
+This script is retained for reference; use blend_ap_axis_figure.py for the
+current version of this figure.
 """
+import argparse
 import pandas as pd, numpy as np
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import MultipleLocator
 import matplotlib.patheffects as pe
 
+ap = argparse.ArgumentParser()
+ap.add_argument('--input-dir', default='data',
+                help='Directory containing neuron_segments.csv')
+ap.add_argument('--out-dir',   default='data',
+                help='Output directory for figures')
+args = ap.parse_args()
+
+from pathlib import Path
+INPUT_DIR = Path(args.input_dir)
+OUT_DIR   = Path(args.out_dir)
+
 # ── Load & prep ──────────────────────────────────────────────────────────────
-segs = pd.read_csv('data/nml_vertices/neuron_segments.csv')
+segs = pd.read_csv(INPUT_DIR / 'neuron_segments.csv')
 for ax_ in ('x','y','z'):
     segs[f'm{ax_}'] = (segs[f'prox_{ax_}'] + segs[f'dist_{ax_}']) / 2
 
@@ -169,7 +189,7 @@ axB.tick_params(labelsize=8)
 axB.set_title('B     Cross-section\n(y = 0 – 300 µm)',
               fontsize=9.5, loc='left', fontweight='bold', pad=6)
 
-out = 'data/nml_vertices/intestine_proximity'
+out = str(OUT_DIR / 'intestine_proximity')
 fig.savefig(out + '.png', dpi=180, bbox_inches='tight')
 fig.savefig(out + '.pdf', bbox_inches='tight')
 print("Saved", out + ".png / .pdf")

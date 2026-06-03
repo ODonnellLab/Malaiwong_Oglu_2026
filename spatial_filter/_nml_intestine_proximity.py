@@ -1,6 +1,11 @@
 """
-nml_intestine_proximity.py
-==========================
+_nml_intestine_proximity.py  [DEPRECATED]
+=========================================
+Superseded by blend_intestine_proximity.py (Blender-native coordinates).
+Retained for reference only; delete after confirming blend_intestine_proximity.py
+produces equivalent results.
+
+Original description:
 Nearest-neighbour distance analysis: cat-1+ neuron processes vs. C. elegans intestine.
 
 Supports the spatial filter argument (step 2) in the Malaiwong & Oglu 2026 rebuttal:
@@ -52,6 +57,10 @@ from scipy.spatial import cKDTree
 from scipy import stats
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import MultipleLocator

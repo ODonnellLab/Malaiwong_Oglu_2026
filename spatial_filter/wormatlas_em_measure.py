@@ -46,6 +46,10 @@ import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 from pathlib import Path
 
@@ -110,7 +114,7 @@ if not rows:
     exit(0)
 
 df = pd.DataFrame(rows).sort_values('body_um').reset_index(drop=True)
-OUT = Path('data/wormatlas_em')
+OUT = Path(__file__).parent / 'data' / 'wormatlas_em'
 OUT.mkdir(exist_ok=True)
 df.to_csv(OUT / 'em_distance_measurements.csv', index=False)
 

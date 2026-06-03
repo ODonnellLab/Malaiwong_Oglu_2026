@@ -20,13 +20,28 @@ Ghaddar gene IDs are 8-digit WBGene (e.g. WBGene00021160); Taylor IDs have a
 trailing version digit (e.g. WBGene000211602).  DEG IDs are stripped of the
 last character before matching.
 """
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 from scipy.stats import hypergeom
 from pathlib import Path
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--input-dir', default='input',
+                help='Directory containing input CSVs (Taylor, Ghaddar)')
+ap.add_argument('--out-dir',   default='data',
+                help='Output directory for figures and CSVs')
+args = ap.parse_args()
+INPUT = Path(args.input_dir)
+OUT   = Path(args.out_dir)
+OUT.mkdir(parents=True, exist_ok=True)
 
 
 def bh_correct(pvals):
@@ -45,7 +60,7 @@ def bh_correct(pvals):
 
 # ── Load Taylor data ──────────────────────────────────────────────────────────
 def load_taylor(stem):
-    df = pd.read_csv(f'Taylor_{stem}_GenesExpressing-BATCH-thrs2.csv')
+    df = pd.read_csv(INPUT / f'Taylor_{stem}_GenesExpressing-BATCH-thrs2.csv')
     df = df.rename(columns={'Unnamed: 0': 'wbgene'}).set_index('wbgene')
     cell_cols = [c for c in df.columns if c != 'gene_name']
     return df, cell_cols
@@ -58,8 +73,8 @@ PSEUDOGENE_EXCLUDE = {
     'WBGene000453662',   # Y17D7C.3 — pseudogene, absent from Ghaddar
 }
 
-t_adult_deg = pd.read_csv('Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
-t_l4_deg    = pd.read_csv('Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
+t_adult_deg = pd.read_csv(INPUT / 'Taylor_Adult_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
+t_l4_deg    = pd.read_csv(INPUT / 'Taylor_L4_GenesExpressing-BATCH-thrs2_DEGfiltered.csv')
 for df in [t_adult_deg, t_l4_deg]:
     df.rename(columns={'Unnamed: 0': 'wbgene'}, inplace=True)
     df.set_index('wbgene', inplace=True)
@@ -70,7 +85,7 @@ for df in [t_adult_deg, t_l4_deg]:
 
 # ── Load Ghaddar data ─────────────────────────────────────────────────────────
 print('Loading Ghaddar data...')
-_graw = pd.read_csv('Ghaddar_prcnt_tpm_bootstrap.csv',
+_graw = pd.read_csv(INPUT / 'Ghaddar_prcnt_tpm_bootstrap.csv',
                     usecols=['gene_ID', 'cell_type', 'scaled_TPM'])
 g_full_all = _graw.pivot_table(index='gene_ID', columns='cell_type',
                                 values='scaled_TPM', aggfunc='first')
@@ -258,12 +273,11 @@ fig.suptitle('cest-2.1 DEG enrichment (NEU ≥ 1 TPM, fold over mean neuronal ex
              fontsize=9, y=1.02)
 fig.tight_layout()
 
-out = Path('data')
-fig.savefig(out / 'can_deg_enrichment_by_threshold.png', dpi=150,
+fig.savefig(OUT / 'can_deg_enrichment_by_threshold.png', dpi=150,
             bbox_inches='tight')
-fig.savefig(out / 'can_deg_enrichment_by_threshold.pdf', bbox_inches='tight')
+fig.savefig(OUT / 'can_deg_enrichment_by_threshold.pdf', bbox_inches='tight')
 plt.close()
-print('Saved data/can_deg_enrichment_by_threshold.png')
+print(f'Saved {OUT}/can_deg_enrichment_by_threshold.png')
 
 
 HDR = (f'  {"neuron":>8}  {"tpm_min":>7}  {"fold":>5}  {"N":>5}  {"K":>5}'
@@ -334,10 +348,10 @@ for ds_name in [d[0] for d in DATASETS[:3]]:
 
 # ── Save CSVs ─────────────────────────────────────────────────────────────────
 can_df = pd.DataFrame(all_can_rows)
-can_df.to_csv(out / 'deg_enrichment_can_statistics.csv', index=False)
+can_df.to_csv(OUT / 'deg_enrichment_can_statistics.csv', index=False)
 
 all_df = pd.DataFrame(all_neuron_rows)
-all_df.to_csv(out / 'deg_enrichment_all_neurons_statistics.csv', index=False)
+all_df.to_csv(OUT / 'deg_enrichment_all_neurons_statistics.csv', index=False)
 
-print('\nSaved data/deg_enrichment_can_statistics.csv')
-print('Saved data/deg_enrichment_all_neurons_statistics.csv')
+print(f'\nSaved {OUT}/deg_enrichment_can_statistics.csv')
+print(f'Saved {OUT}/deg_enrichment_all_neurons_statistics.csv')

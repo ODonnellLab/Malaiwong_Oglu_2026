@@ -75,12 +75,16 @@ import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams["pdf.fonttype"]    = 42
+matplotlib.rcParams["ps.fonttype"]     = 42
+matplotlib.rcParams["font.family"]     = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 ap = argparse.ArgumentParser()
-ap.add_argument('--out-dir',          default='data/nml_vertices')
+ap.add_argument('--out-dir',          default='data')
 ap.add_argument('--contact-threshold', type=float, default=10.0,
                 help='Contact distance threshold in µm (default 10)')
 ap.add_argument('--y-win',            type=float, default=25.0,

@@ -731,7 +731,10 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", default=None,
                         help="Directory containing raw SOS CSV files")
-    parser.add_argument("--out-dir",  default="data/")
+    parser.add_argument("--out-dir",  default="data")
+    parser.add_argument("--locomotion-dir", default="../locomotion/data",
+                        help="Directory containing postural_comparison_stats.csv and "
+                             "recording_data.parquet from the locomotion subproject")
     parser.add_argument("--refresh",  action="store_true",
                         help="Force re-scan even if cache exists")
     parser.add_argument("--refit",    action="store_true",
@@ -786,12 +789,13 @@ def main():
         print(f"Saved stats: {stats_cache}")
 
     # ── speed LME stats and N2 speed ─────────────────────────────────────────
-    speed_stats_path = os.path.join(args.out_dir, "postural_comparison_stats.csv")
+    speed_stats_path = os.path.join(args.locomotion_dir, "postural_comparison_stats.csv")
     if not os.path.exists(speed_stats_path):
-        sys.exit(f"Speed stats not found at {speed_stats_path}")
+        sys.exit(f"Speed stats not found at {speed_stats_path}\n"
+                 f"Run locomotion/batch_postural_comparison.py first, or pass --locomotion-dir.")
     speed_stat = pd.read_csv(speed_stats_path)
 
-    rec_path = os.path.join(args.out_dir, "recording_data.parquet")
+    rec_path = os.path.join(args.locomotion_dir, "recording_data.parquet")
     if os.path.exists(rec_path):
         rec_df = pd.read_parquet(rec_path)
         n2_speed_mm = rec_df[rec_df["genotype"] == "N2"]["speed"].mean()

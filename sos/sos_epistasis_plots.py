@@ -187,7 +187,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", default="/Users/mikeodonnell/Downloads/raw_figure_data",
                         help="Directory with raw SOS CSV and LMMstats files")
-    parser.add_argument("--out-dir",  default="data/sos_figures/")
+    parser.add_argument("--out-dir",  default="data/figures")
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
